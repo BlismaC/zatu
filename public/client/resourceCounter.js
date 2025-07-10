@@ -98,8 +98,8 @@ export function drawResourceCounter(ctx, canvas, me) {
     const resourcesToDisplay = [
         { type: RESOURCE_TYPES.WOOD, iconDraw: drawTreeIcon },
         { type: RESOURCE_TYPES.STONE, iconDraw: drawStoneIcon },
-        { type: RESOURCE_TYPES.FOOD, iconDraw: drawAppleIcon } // Use apple icon for food
-        // Removed gold from here as it's now displayed separately in HTML
+        { type: RESOURCE_TYPES.FOOD, iconDraw: drawAppleIcon },
+        { type: RESOURCE_TYPES.GOLD, iconDraw: drawGoldIcon }
     ];
 
     // Configure text style once
