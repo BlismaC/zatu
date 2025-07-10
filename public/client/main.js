@@ -205,7 +205,8 @@ playerNameInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") startGame();
 });
 
-let preventImmediateChatSend = false;
+let lastEnterPressTime = 0;
+const ENTER_DEBOUNCE_DELAY = 200; // Milliseconds to wait between 'Enter' presses
 
 // ...
 
@@ -217,31 +218,25 @@ let preventImmediateChatSend = false;
 function toggleChatInputVisibility(show) {
     if (localChatInput) {
         if (show) {
+            localChatInput.value = ''; // Always clear input when opening
             localChatInput.style.opacity = '1';
             localChatInput.style.pointerEvents = 'auto';
-            localChatInput.focus(); // Immediately focus when shown
-            // When chat opens, stop all player movement
+            localChatInput.focus();
             for (const key in keys) {
                 keys[key] = false;
             }
             console.log("Chat input shown and focused. Player movement stopped.");
-            // Set flag to prevent immediate empty send if Enter was just used to open
-            preventImmediateChatSend = true;
-            // Clear flag after a very short delay, allowing typing/sending
-            setTimeout(() => {
-                preventImmediateChatSend = false;
-            }, 100); // Adjust this delay if needed (e.g., 50ms to 200ms)
-
         } else {
             localChatInput.style.opacity = '0';
             localChatInput.style.pointerEvents = 'none';
-            localChatInput.blur(); // Unfocus when hidden
+            localChatInput.blur();
             console.log("Chat input hidden and unfocused.");
         }
     } else {
         console.warn("toggleChatInputVisibility: localChatInput element is null.");
     }
 }
+
 
 // Function to send local chat messages
 function sendLocalChatMessage() {
@@ -292,6 +287,7 @@ function startGame() {
 
     // Global keydown/keyup listeners for chat and general game input
    document.addEventListener("keydown", (e) => {
+    const currentTime = Date.now();
     const isMainMenuVisible = mainMenu.style.display === 'block';
     const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
     const me = players[myId];
@@ -300,8 +296,6 @@ function startGame() {
     if (isMainMenuVisible) {
         e.preventDefault();
         toggleChatInputVisibility(false);
-        // We already clear on death, and now clearing on open.
-        // This line is less critical here but doesn't hurt.
         if (localChatInput) localChatInput.value = '';
         return;
     }
@@ -311,8 +305,8 @@ function startGame() {
         if (e.key.toLowerCase() === 'enter') {
             e.preventDefault();
             console.log("Player is dead. Cannot open chat or send messages.");
-            toggleChatInputVisibility(false); // Ensure hidden
-            if (localChatInput) localChatInput.value = ''; // Ensure cleared
+            toggleChatInputVisibility(false);
+            if (localChatInput) localChatInput.value = '';
         }
         for (const key in keys) {
             keys[key] = false;
@@ -320,15 +314,22 @@ function startGame() {
         return;
     }
 
-    // Only proceed with game/chat logic if main menu is NOT visible AND player is NOT dead
+    // Handle 'Enter' key presses for chat
     if (e.key.toLowerCase() === 'enter') {
-        e.preventDefault(); // Prevent default Enter key behavior (e.g., newline in some inputs)
+        e.preventDefault(); // Prevent default Enter key behavior (e.g., newline)
+
+        // --- NEW DEBOUNCING LOGIC ---
+        // Only process 'Enter' if enough time has passed since the last press
+        if (currentTime - lastEnterPressTime < ENTER_DEBOUNCE_DELAY) {
+            console.log("Enter key debounced. Too fast.");
+            return; // Ignore this press, it's too soon
+        }
+        lastEnterPressTime = currentTime; // Update the last press time
+        // ---------------------------
 
         if (isChatInputFocused) {
             // If chat is focused, attempt to send the message
-            sendLocalChatMessage();
-            // sendLocalChatMessage() internally calls toggleChatInputVisibility(false)
-            // if a message is sent or if it's empty, ensuring it closes.
+            sendLocalChatMessage(); // This function will close the chat if message is sent or empty
         } else {
             // If chat is not focused, open it
             toggleChatInputVisibility(true);
