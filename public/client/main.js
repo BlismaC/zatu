@@ -300,6 +300,8 @@ function startGame() {
     if (isMainMenuVisible) {
         e.preventDefault();
         toggleChatInputVisibility(false);
+        // We already clear on death, and now clearing on open.
+        // This line is less critical here but doesn't hurt.
         if (localChatInput) localChatInput.value = '';
         return;
     }
@@ -309,8 +311,8 @@ function startGame() {
         if (e.key.toLowerCase() === 'enter') {
             e.preventDefault();
             console.log("Player is dead. Cannot open chat or send messages.");
-            toggleChatInputVisibility(false);
-            if (localChatInput) localChatInput.value = '';
+            toggleChatInputVisibility(false); // Ensure hidden
+            if (localChatInput) localChatInput.value = ''; // Ensure cleared
         }
         for (const key in keys) {
             keys[key] = false;
@@ -320,20 +322,20 @@ function startGame() {
 
     // Only proceed with game/chat logic if main menu is NOT visible AND player is NOT dead
     if (e.key.toLowerCase() === 'enter') {
-        e.preventDefault();
+        e.preventDefault(); // Prevent default Enter key behavior (e.g., newline in some inputs)
+
         if (isChatInputFocused) {
-            // --- NEW: Check the flag before sending ---
-            if (!preventImmediateChatSend) {
-                sendLocalChatMessage();
-            } else {
-                console.log("Preventing immediate chat send after opening.");
-            }
-            // ----------------------------------------
+            // If chat is focused, attempt to send the message
+            sendLocalChatMessage();
+            // sendLocalChatMessage() internally calls toggleChatInputVisibility(false)
+            // if a message is sent or if it's empty, ensuring it closes.
         } else {
+            // If chat is not focused, open it
             toggleChatInputVisibility(true);
         }
     } else if (!isChatInputFocused) {
-        if (me && !me.isDead && typeof e.key === 'string') {
+        // Only capture game input if chat is not focused
+        if (typeof e.key === 'string') {
             keys[e.key.toLowerCase()] = true;
         }
     }
