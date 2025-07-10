@@ -281,53 +281,75 @@ function startGame() {
     toggleChatInputVisibility(false); // Ensure it's hidden when game starts
 
     // Global keydown/keyup listeners for chat and general game input
-    document.addEventListener("keydown", (e) => {
-        // Check if the main menu is currently displayed
-        const isMainMenuVisible = mainMenu.style.display === 'block';
+   // main.js - inside document.addEventListener("keydown", (e) => { ... });
 
-        // If the main menu is visible, prevent ALL game/chat input
-        if (isMainMenuVisible) {
-            e.preventDefault(); // Prevent default behavior for any key if menu is active
-            // Ensure chat input is hidden if it somehow became visible
-            toggleChatInputVisibility(false);
-            console.log("Main menu is visible, keydown event ignored for game/chat.");
-            return; // Exit the keydown listener entirely
-        }
+document.addEventListener("keydown", (e) => {
+    const isMainMenuVisible = mainMenu.style.display === 'block';
+    const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
+    const me = players[myId]; // Get current player state here
 
-        // Only proceed with game/chat logic if main menu is NOT visible
-        const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
+    // If the main menu is visible, prevent ALL game/chat input
+    if (isMainMenuVisible) {
+        e.preventDefault();
+        toggleChatInputVisibility(false);
+        if (localChatInput) localChatInput.value = ''; // Ensure input is cleared
+        console.log("Main menu is visible, keydown event ignored for game/chat.");
+        return;
+    }
 
+    // --- IMPORTANT ADDITION: Prevent chat interactions if the player is dead ---
+    // This covers both trying to open chat and sending messages while dead.
+    if (me && me.isDead) {
+        // If 'Enter' is pressed while dead, prevent default behavior but don't open chat
         if (e.key.toLowerCase() === 'enter') {
             e.preventDefault();
-            if (isChatInputFocused) {
-                sendLocalChatMessage();
-            } else {
-                toggleChatInputVisibility(true);
-            }
-        } else if (!isChatInputFocused) {
-            // Only capture game input if chat is not focused AND player is not dead
-            const me = players[myId]; // Get current player state
-            if (me && !me.isDead && typeof e.key === 'string') {
-                keys[e.key.toLowerCase()] = true;
-            }
+            console.log("Player is dead. Cannot open chat or send messages.");
+            // Ensure chat is hidden and cleared if it somehow became visible/active
+            toggleChatInputVisibility(false);
+            if (localChatInput) localChatInput.value = '';
         }
-    });
-
-    document.addEventListener("keyup", (e) => {
-        const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
-        const isMainMenuVisible = mainMenu.style.display === 'block'; // Check main menu visibility
-
-        // If main menu is visible, don't process keyup for game movement or chat
-        if (isMainMenuVisible) {
-            return;
+        // Also ensure no other game keys are processed if dead
+        for (const key in keys) {
+            keys[key] = false;
         }
+        return; // Stop processing further input if player is dead
+    }
+    // -------------------------------------------------------------------------
 
-        if (!isChatInputFocused) {
-            if (typeof e.key === 'string') {
-                keys[e.key.toLowerCase()] = false;
-            }
+    // Only proceed with game/chat logic if main menu is NOT visible AND player is NOT dead
+    if (e.key.toLowerCase() === 'enter') {
+        e.preventDefault();
+        if (isChatInputFocused) {
+            sendLocalChatMessage();
+        } else {
+            toggleChatInputVisibility(true);
         }
-    });
+    } else if (!isChatInputFocused) {
+        // Only capture game input if chat is not focused AND player is not dead
+        // (The 'me && !me.isDead' check is now redundant here due to the new block above,
+        // but keeping it for clarity as it's part of your existing logic)
+        if (me && !me.isDead && typeof e.key === 'string') {
+            keys[e.key.toLowerCase()] = true;
+        }
+    }
+});
+
+// The keyup listener will also benefit from a similar check
+document.addEventListener("keyup", (e) => {
+    const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
+    const isMainMenuVisible = mainMenu.style.display === 'block';
+    const me = players[myId]; // Get current player state here
+
+    if (isMainMenuVisible || (me && me.isDead)) { // Combine checks
+        return; // Don't process keyups for game/chat if main menu is visible OR player is dead
+    }
+
+    if (!isChatInputFocused) {
+        if (typeof e.key === 'string') {
+            keys[e.key.toLowerCase()] = false;
+        }
+    }
+});
 
     // Add a click listener to the entire document to hide chat when clicking outside
     document.addEventListener('click', (e) => {
