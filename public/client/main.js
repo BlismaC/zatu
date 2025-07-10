@@ -205,6 +205,10 @@ playerNameInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") startGame();
 });
 
+let preventImmediateChatSend = false;
+
+// ...
+
 /**
  * Toggles the visibility of the local chat input.
  * Also manages pointer events to make it interactive or non-interactive.
@@ -221,17 +225,23 @@ function toggleChatInputVisibility(show) {
                 keys[key] = false;
             }
             console.log("Chat input shown and focused. Player movement stopped.");
+            // Set flag to prevent immediate empty send if Enter was just used to open
+            preventImmediateChatSend = true;
+            // Clear flag after a very short delay, allowing typing/sending
+            setTimeout(() => {
+                preventImmediateChatSend = false;
+            }, 100); // Adjust this delay if needed (e.g., 50ms to 200ms)
+
         } else {
-          /*  localChatInput.style.opacity = '0';
+            localChatInput.style.opacity = '0';
             localChatInput.style.pointerEvents = 'none';
             localChatInput.blur(); // Unfocus when hidden
-            console.log("Chat input hidden and unfocused."); */
+            console.log("Chat input hidden and unfocused.");
         }
     } else {
         console.warn("toggleChatInputVisibility: localChatInput element is null.");
     }
 }
-
 
 // Function to send local chat messages
 function sendLocalChatMessage() {
@@ -281,37 +291,53 @@ function startGame() {
     toggleChatInputVisibility(false); // Ensure it's hidden when game starts
 
     // Global keydown/keyup listeners for chat and general game input
-    document.addEventListener("keydown", (e) => {
-        // Check if the main menu is currently displayed
-        const isMainMenuVisible = mainMenu.style.display === 'block';
+   document.addEventListener("keydown", (e) => {
+    const isMainMenuVisible = mainMenu.style.display === 'block';
+    const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
+    const me = players[myId];
 
-        // If the main menu is visible, prevent ALL game/chat input
-        if (isMainMenuVisible) {
-            e.preventDefault(); // Prevent default behavior for any key if menu is active
-            // Ensure chat input is hidden if it somehow became visible
-            toggleChatInputVisibility(false);
-            console.log("Main menu is visible, keydown event ignored for game/chat.");
-            return; // Exit the keydown listener entirely
-        }
+    // If the main menu is visible, prevent ALL game/chat input
+    if (isMainMenuVisible) {
+        e.preventDefault();
+        toggleChatInputVisibility(false);
+        if (localChatInput) localChatInput.value = '';
+        return;
+    }
 
-        // Only proceed with game/chat logic if main menu is NOT visible
-        const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
-
+    // Prevent chat interactions if the player is dead
+    if (me && me.isDead) {
         if (e.key.toLowerCase() === 'enter') {
             e.preventDefault();
-            if (isChatInputFocused) {
+            console.log("Player is dead. Cannot open chat or send messages.");
+            toggleChatInputVisibility(false);
+            if (localChatInput) localChatInput.value = '';
+        }
+        for (const key in keys) {
+            keys[key] = false;
+        }
+        return;
+    }
+
+    // Only proceed with game/chat logic if main menu is NOT visible AND player is NOT dead
+    if (e.key.toLowerCase() === 'enter') {
+        e.preventDefault();
+        if (isChatInputFocused) {
+            // --- NEW: Check the flag before sending ---
+            if (!preventImmediateChatSend) {
                 sendLocalChatMessage();
             } else {
-                toggleChatInputVisibility(true);
+                console.log("Preventing immediate chat send after opening.");
             }
-        } else if (!isChatInputFocused) {
-            // Only capture game input if chat is not focused AND player is not dead
-            const me = players[myId]; // Get current player state
-            if (me && !me.isDead && typeof e.key === 'string') {
-                keys[e.key.toLowerCase()] = true;
-            }
+            // ----------------------------------------
+        } else {
+            toggleChatInputVisibility(true);
         }
-    });
+    } else if (!isChatInputFocused) {
+        if (me && !me.isDead && typeof e.key === 'string') {
+            keys[e.key.toLowerCase()] = true;
+        }
+    }
+});
 
     document.addEventListener("keyup", (e) => {
         const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
