@@ -312,8 +312,6 @@ function startGame() {
             keys[key] = false;
         }
         return;
-    } else {
-        console.log('me: ' + me);
     }
 
     // Handle 'Enter' key presses for chat
@@ -322,12 +320,12 @@ function startGame() {
 
         // --- NEW DEBOUNCING LOGIC ---
         // Only process 'Enter' if enough time has passed since the last press
-        /*if (currentTime - lastEnterPressTime < ENTER_DEBOUNCE_DELAY) {
-            console.log("Enter key debounced. Too fast.");
+        if (currentTime - lastEnterPressTime < ENTER_DEBOUNCE_DELAY) {
+            // console.log("Enter key debounced. Too fast.");
             return; // Ignore this press, it's too soon
         }
         lastEnterPressTime = currentTime; // Update the last press time
-        // ---------------------------*/
+        // ---------------------------
 
         if (isChatInputFocused) {
             // If chat is focused, attempt to send the message
