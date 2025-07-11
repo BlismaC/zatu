@@ -288,17 +288,17 @@ function startGame() {
     // Global keydown/keyup listeners for chat and general game input
    document.addEventListener("keydown", (e) => {
     const currentTime = Date.now();
-    const isMainMenuVisible = mainMenu.style.display === 'block' ? true : false;
+    //  const isMainMenuVisible = mainMenu.style.display === 'block' ? true : false;
     const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
     const me = players[myId];
 
     // If the main menu is visible, prevent ALL game/chat input
-    if (isMainMenuVisible) {
+  /*  if (isMainMenuVisible) {
         e.preventDefault();
         toggleChatInputVisibility(false);
         if (localChatInput) localChatInput.value = '';
         return;
-    }
+    } */
 
     // Prevent chat interactions if the player is dead
     if (me && me.isDead) {
@@ -618,10 +618,9 @@ function loop() {
     deltaTime = (Date.now() - lastTime) / 1000;
     lastTime = Date.now();
 
-    // Game logic (update) only runs when the main menu is NOT displayed
-    if (mainMenu.style.display === "none") {
+    // if (mainMenu.style.display === "none") {
         update();
-    }
+    // }
     
     // Drawing (rendering) always happens, regardless of menu state,
     // so the canvas is always live in the background.
