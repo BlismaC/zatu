@@ -115,10 +115,10 @@ canvas {
 
 /* NEW: Styles for the standalone gold display */
 #goldResourceDisplay {
-    display: flex;
     position: absolute;
     bottom: 180px; /* Minimap bottom (20px) + Minimap size (150px) + 10px gap */
     left: 20px; /* Align with minimap's left padding */
+    display: flex; /* Hidden by default in CSS */
     /* Reuse .resource-item styles by including them here directly or via a class */
     background-color: rgba(45, 60, 45, 0.85);
     border-radius: 5px;
