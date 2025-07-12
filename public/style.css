@@ -113,7 +113,7 @@ canvas {
 
 /* NEW: Styles for the standalone gold display */
 #goldResourceDisplay {
-    display: flex;
+    display: block;
     position: absolute;
     bottom: 180px; /* Minimap bottom (20px) + Minimap size (150px) + 10px gap */
     left: 20px; /* Align with minimap's left padding */
