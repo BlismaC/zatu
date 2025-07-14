@@ -49,10 +49,11 @@ export function updateLeaderboard(players, myId) {
         // Rank will now be white by default from index.html CSS
 
         const skullIcon = document.getElementById('skullIcon');
+        const clonedSkullIcon = skullIcon.cloneNode(true);
         const nameSpan = document.createElement('span');
         nameSpan.classList.add('name');
         nameSpan.textContent = (player.name || "Unnamed");
-        nameSpan.appendChild(skullIcon);
+        nameSpan.appendChild(clonedSkullIcon);
         
         if (player.id === myId) {
             nameSpan.style.fontWeight = 'bold';
