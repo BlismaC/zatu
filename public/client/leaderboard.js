@@ -50,7 +50,8 @@ export function updateLeaderboard(players, myId) {
 
         const nameSpan = document.createElement('span');
         nameSpan.classList.add('name');
-        nameSpan.textContent = (player.name || "Unnamed") + document.getElementById('skullIcon');;
+        nameSpan.textContent = (player.name || "Unnamed");
+        nameSpan.appendChild(skullIcon);
         
         if (player.id === myId) {
             nameSpan.style.fontWeight = 'bold';
