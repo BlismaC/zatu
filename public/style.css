@@ -111,30 +111,3 @@ canvas {
     image-rendering: pixelated; /* For sharper pixel art if source allows */
 }
 
-/* NEW: Styles for the standalone gold display */
-#goldResourceDisplay {
-    display: block;
-    position: absolute;
-    bottom: 180px; /* Minimap bottom (20px) + Minimap size (150px) + 10px gap */
-    left: 20px; /* Align with minimap's left padding */
-     /* Hidden by default in CSS */
-    /* Reuse .resource-item styles by including them here directly or via a class */
-    background-color: rgba(45, 60, 45, 0.85);
-    border-radius: 5px;
-    color: white;
-    font-size: 40px;
-    font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    white-space: nowrap;
-    padding: 7px 15px;
-    min-width: 90px;
-    align-items: center;
-    justify-content: flex-end;
-}
-#goldResourceDisplay img {
-    width: 40px;
-    height: 40px;
-    margin-left: 10px;
-    object-fit: contain;
-    image-rendering: pixelated;
-}
