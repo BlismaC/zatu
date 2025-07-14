@@ -272,8 +272,6 @@ function startGame() {
     if (goldResourceDisplay) goldResourceDisplay.style.display = 'flex';
     if (leaderboardContainer) leaderboardContainer.style.display = 'block';
 
-    setInterval(()=>{console.log(goldResourceDisplay, goldResourceDisplay.style.display); }, 100)
-
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
@@ -619,7 +617,7 @@ function update() {
 function loop() {
     deltaTime = (Date.now() - lastTime) / 1000;
     lastTime = Date.now();
-
+    console.log(goldResourceDisplay, goldResourceDisplay.style.display);
     // if (mainMenu.style.display === "none") {
         update();
     // }
