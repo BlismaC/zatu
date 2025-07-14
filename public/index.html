@@ -125,32 +125,6 @@
             image-rendering: pixelated;
         }
 
-        /* Styles for the standalone gold display */
-        #goldResourceDisplay {
-            position: absolute;
-            bottom: 180px; /* MINIMAP_SIZE (150) + MINIMAP_PADDING (20) + 10px gap */
-            left: 20px; /* Align with minimap's left padding */
-            display: block; /* Hidden by default in CSS */
-            background-color: rgba(45, 60, 45, 0.85);
-            border-radius: 5px;
-            color: white;
-            font-size: 40px;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            white-space: nowrap;
-            padding: 7px 15px;
-            min-width: 90px;
-            align-items: center;
-            justify-content: flex-end;
-        }
-        #goldResourceDisplay img {
-            width: 40px;
-            height: 40px;
-            margin-left: 10px;
-            object-fit: contain;
-            image-rendering: pixelated;
-        }
-
         /* Updated Chat Input Styles */
         #localChatInput {
             position: absolute;
@@ -268,12 +242,6 @@
         </div>
     </div>
 
-    <!-- Standalone Gold Resource Display -->
-    <div id="goldResourceDisplay" class="resource-item">
-        <span id="goldCount">0</span>
-        <img id="goldIcon" src="assets/gold.png" alt="Gold Icon" onerror="this.onerror=null;this.src='assets/gold.png'">
-    </div>
-
     <!-- Local Chat Input (now just the input field) -->
     <input type="text" id="localChatInput" placeholder="Enter Message" maxlength="30" />
 
@@ -298,7 +266,6 @@
             const woodCountSpan = document.getElementById('woodCount');
             const stoneCountSpan = document.getElementById('stoneCount');
             const foodCountSpan = document.getElementById('foodCount');
-            const goldCountSpan = document.getElementById('goldCount');
 
             if (woodCountSpan) {
                 woodCountSpan.textContent = Math.floor(inventory.wood || 0);
@@ -309,15 +276,11 @@
             if (foodCountSpan) {
                 foodCountSpan.textContent = Math.floor(inventory.food || 0);
             }
-            if (goldCountSpan) {
-                goldCountSpan.textContent = Math.floor(inventory.gold || 0);
-            }
         };
 
         // Initially hide resource counters and leaderboard until the game starts
         document.addEventListener('DOMContentLoaded', () => {
             const resourceCounterContainer = document.getElementById('resourceCounterContainer');
-            const goldResourceDisplay = document.getElementById('goldResourceDisplay');
             const leaderboardContainer = document.getElementById('leaderboardContainer');
             const mainMenuBackground = document.getElementById('mainMenuBackground'); // Get the background div
 
@@ -332,9 +295,6 @@
                                 if (resourceCounterContainer) {
                                     resourceCounterContainer.style.display = 'flex'; // Show the main counter
                                 }
-                                if (goldResourceDisplay) {
-                                    goldResourceDisplay.style.display = 'flex'; // Show the gold counter
-                                }
                                 if (leaderboardContainer) {
                                     leaderboardContainer.style.display = 'block'; // Show the leaderboard
                                 }
@@ -347,9 +307,6 @@
                                 // Main menu is visible, ensure game UI elements are hidden
                                 if (resourceCounterContainer) {
                                     resourceCounterContainer.style.display = 'none';
-                                }
-                                if (goldResourceDisplay) {
-                                    goldResourceDisplay.style.display = 'none';
                                 }
                                 if (leaderboardContainer) {
                                     leaderboardContainer.style.display = 'none';
