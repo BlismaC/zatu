@@ -387,6 +387,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                             console.log(`Server: ${target.name} has been defeated!`);
                         }
                         console.log(`Server: ${attacker.name} hit ${target.name}. ${target.name}'s health is now ${target.health}`);
+                        attacker.inventory.kills = (attacker.inventory.kills || 0) + 1;
 
                         const knockbackAngle = angleToTarget;
                         target.x += Math.cos(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
