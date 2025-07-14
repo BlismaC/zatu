@@ -297,7 +297,8 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 wood: 0,
                 stone: 0,
                 food: 0,
-                gold: 0 // Initialize gold inventory
+                gold: 0, // Initialize gold inventory
+                kills: 0
             },
             age: 0, // Starting age
             xp: 0,    // Starting XP
@@ -382,12 +383,11 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                         target.health = Math.max(0, target.health - FIST_DAMAGE);
                         if (target.health <= 0) {
                             target.isDead = true;
-                            target.deathTime = Date.now(); // NEW: Set death time
+                            target.deathTime = Date.now(); 
                             console.log(`Server: ${target.name} has been defeated!`);
                         }
                         console.log(`Server: ${attacker.name} hit ${target.name}. ${target.name}'s health is now ${target.health}`);
 
-                        // Apply knockback to the target player
                         const knockbackAngle = angleToTarget;
                         target.x += Math.cos(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
                         target.y += Math.sin(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
@@ -398,7 +398,6 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 }
             }
 
-            // Check for hitting resources
             for (const resId in resources) {
                 const resource = resources[resId];
 
@@ -406,21 +405,17 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 const dy_resource = resource.y - attacker.y;
                 const distanceToResource = Math.hypot(dx_resource, dy_resource);
 
-                // Use resource.hitRadius for collection check, combined with FIST_REACH for arc distance
                 if (distanceToResource <= FIST_REACH + resource.hitRadius) {
                     const angleToResource = Math.atan2(dy_resource, dx_resource);
                     const angleDiff = getShortestAngleDiff(attacker.angle, angleToResource);
 
                     if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
-                        // Only emit wiggle event and award resource if cooldown has passed
-                        const now = Date.now(); // Get current time inside the loop for accurate cooldown
                         if (now - resource.lastWiggleEmitTime >= RESOURCE_WIGGLE_EMIT_COOLDOWN) {
                             io.emit('resource-wiggled', { resourceId: resId, direction: angleToResource });
                             
-                            // Award resource and XP
                             attacker.inventory[resource.type] += RESOURCE_PROPERTIES[resource.type].collectionAmount;
-                            attacker.xp += RESOURCE_PROPERTIES[resource.type].xpReward; // Award XP
-                            checkAgeUp(attacker); // Check for age up after gaining XP
+                            attacker.xp += RESOURCE_PROPERTIES[resource.type].xpReward; 
+                            checkAgeUp(attacker); 
 
                             resource.lastWiggleEmitTime = now;
                             console.log(`Server: ${attacker.name} collected ${RESOURCE_PROPERTIES[resource.type].collectionAmount} ${resource.type}. Inventory:`, attacker.inventory);
@@ -437,19 +432,19 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 console.log(`Server: ${player.name} is respawning.`);
                 player.health = MAX_HEALTH;
                 player.isDead = false;
-                player.deathTime = 0; // NEW: Reset deathTime on respawn
+                player.deathTime = 0; 
                 player.x = Math.random() * (WORLD_WIDTH - 200) + 100;
                 player.y = Math.random() * (WORLD_HEIGHT - 200) + 100;
-                // Reset player's inventory and age/XP on respawn
                 player.inventory = {
                     wood: 0,
                     stone: 0,
                     food: 0,
-                    gold: 0 // Reset gold on respawn
+                    gold: 0,
+                    kills: 0,
                 };
-                player.age = 0; // Reset to age 0
-                player.xp = 0;    // Reset XP
-                player.xpToNextAge = calculateXpToNextAge(0); // Reset XP target for Age 1
+                player.age = 0;
+                player.xp = 0; 
+                player.xpToNextAge = calculateXpToNextAge(0);
             }
         });
 
@@ -472,7 +467,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
     setInterval(() => {
         for (const id in players) {
             const player = players[id];
-            if (player.isDead) continue; // Do not move dead players
+            if (player.isDead) continue; 
 
             let moveX = 0;
             let moveY = 0;
