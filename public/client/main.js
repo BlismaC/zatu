@@ -18,7 +18,6 @@ let localChatInput;
 
 // Resource Counter Elements
 const resourceCounterContainer = document.getElementById('resourceCounterContainer');
-const goldResourceDisplay = document.getElementById('goldResourceDisplay');
 const leaderboardContainer = document.getElementById('leaderboardContainer');
 
 
@@ -269,7 +268,6 @@ function startGame() {
     
     // Show game UI elements
     if (resourceCounterContainer) resourceCounterContainer.style.display = 'flex';
-    if (goldResourceDisplay) goldResourceDisplay.style.display = 'flex';
     if (leaderboardContainer) leaderboardContainer.style.display = 'block';
 
     resizeCanvas();
@@ -438,7 +436,6 @@ function startGame() {
                     
                     // Hide game UI elements
                     if (resourceCounterContainer) resourceCounterContainer.style.display = 'none';
-                    if (goldResourceDisplay) goldResourceDisplay.style.display = 'none';
                     if (leaderboardContainer) leaderboardContainer.style.display = 'none';
                     toggleChatInputVisibility(false); // Hide chat input
                 }
@@ -617,7 +614,6 @@ function update() {
 function loop() {
     deltaTime = (Date.now() - lastTime) / 1000;
     lastTime = Date.now();
-    console.log(goldResourceDisplay, goldResourceDisplay.style.display);
     // if (mainMenu.style.display === "none") {
         update();
     // }
