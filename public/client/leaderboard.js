@@ -48,6 +48,7 @@ export function updateLeaderboard(players, myId) {
         rankSpan.textContent = `${i + 1}.`;
         // Rank will now be white by default from index.html CSS
 
+        const skullIcon = document.getElementById('skullIcon');
         const nameSpan = document.createElement('span');
         nameSpan.classList.add('name');
         nameSpan.textContent = (player.name || "Unnamed");
