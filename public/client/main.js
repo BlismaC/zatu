@@ -272,7 +272,7 @@ function startGame() {
     if (goldResourceDisplay) goldResourceDisplay.style.display = 'flex';
     if (leaderboardContainer) leaderboardContainer.style.display = 'block';
 
-    setInterval(() {console.log(goldResourceDisplay, goldResourceDisplay.style.display); }, 100)
+    setInterval(()=>{console.log(goldResourceDisplay, goldResourceDisplay.style.display); }, 100)
 
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
