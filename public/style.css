@@ -111,3 +111,36 @@ canvas {
     image-rendering: pixelated; /* For sharper pixel art if source allows */
 }
 
+.leaderboard-item {
+    display: flex; /* Makes items arrange in a row */
+    align-items: center; /* Vertically aligns content in the middle */
+    gap: 5px; /* Adds a small space between elements like rank, skull, name, and gold */
+    padding: 5px 0; /* Add some vertical padding for readability */
+    color: white; /* Default text color for all leaderboard items */
+}
+
+/* Styles for the skull icon image */
+.skull-icon {
+    width: 20px; /* Set the width of the skull image */
+    height: 20px; /* Set the height of the skull image to maintain aspect ratio */
+    vertical-align: middle; /* Helps align the image with the text baseline */
+    /* You can add more styling here if needed, like a small margin or shadow */
+}
+
+/* You might already have these, but including for completeness to show context */
+.leaderboard-item .rank {
+    width: 30px; /* Gives the rank number a consistent width */
+    text-align: right; /* Aligns the rank to the right */
+    margin-right: 5px; /* Space between rank and the next element */
+}
+
+.leaderboard-item .name {
+    flex-grow: 1; /* Allows the name to take up the remaining space */
+    text-align: left; /* Aligns the name to the left */
+}
+
+.leaderboard-item .gold {
+    width: 60px; /* Gives the gold count a consistent width */
+    text-align: right; /* Aligns the gold count to the right */
+}
+
