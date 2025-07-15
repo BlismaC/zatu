@@ -23,8 +23,9 @@ export function initLeaderboard() {
  * Updates the leaderboard display with current player data.
  * @param {object} players - An object containing all player data, keyed by player ID.
  * @param {string} myId - The ID of the current client's player.
+ * @param {string|null} topKillerId - The ID of the current top killer, or null if none.
  */
-export function updateLeaderboard(players, myId) {
+export function updateLeaderboard(players, myId, topKillerId) {
     if (!leaderboardList) {
         console.warn("Leaderboard list element not found, cannot update leaderboard.");
         return;
@@ -46,26 +47,37 @@ export function updateLeaderboard(players, myId) {
         const rankSpan = document.createElement('span');
         rankSpan.classList.add('rank');
         rankSpan.textContent = `${i + 1}.`;
-        // Rank will now be white by default from index.html CSS
 
         const nameSpan = document.createElement('span');
         nameSpan.classList.add('name');
-        nameSpan.textContent = (player.name || "Unnamed");
+        nameSpan.textContent = player.name || "Unnamed";
         
+        // Highlight current player
         if (player.id === myId) {
             nameSpan.style.fontWeight = 'bold';
-            nameSpan.style.color = 'white'; // Set own player name to white
+            nameSpan.style.color = 'white';
         } else {
-            nameSpan.style.color = '#AAAAAA'; // Set other player names to gray
+            nameSpan.style.color = '#AAAAAA';
         }
 
-        const goldSpan = document.createElement('span');
-        goldSpan.classList.add('gold');
-        goldSpan.textContent = Math.floor(player.inventory.gold || 0);
-        // Gold count will now be white by default from index.html CSS
+        // NEW: Add skull image if this player is the top killer and has kills
+        // Ensure the skull is only shown if the top killer actually has kills.
+        if (topKillerId && player.id === topKillerId && (player.inventory.kills || 0) > 0) {
+            const skullImg = document.createElement('img');
+            skullImg.src = 'assets/Skull.webp';
+            skullImg.alt = 'Top Killer';
+            skullImg.classList.add('skull-icon'); // Add a class for CSS styling
+            // Prepend the skull image to the name span, or append to listItem directly
+            // Appending to listItem directly gives more control over layout with flexbox
+            listItem.appendChild(skullImg); 
+        }
 
         listItem.appendChild(rankSpan);
         listItem.appendChild(nameSpan);
+        
+        const goldSpan = document.createElement('span');
+        goldSpan.classList.add('gold');
+        goldSpan.textContent = Math.floor(player.inventory.gold || 0);
         listItem.appendChild(goldSpan);
 
         leaderboardList.appendChild(listItem);
