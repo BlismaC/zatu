@@ -26,8 +26,8 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
     let resourceIdCounter = 0; // To assign unique IDs to resources
 
     const MAX_HEALTH = 100;
-    const WORLD_WIDTH = 4000;
-    const WORLD_HEIGHT = 4000;
+    const WORLD_WIDTH = 10000;
+    const WORLD_HEIGHT = 10000;
     const PLAYER_COLLISION_RADIUS = 30; // Player hitbox size
     const MAX_PLAYER_DIMENSION = PLAYER_COLLISION_RADIUS;
     const PLAYER_SPEED = 8;
