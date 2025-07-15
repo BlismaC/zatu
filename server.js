@@ -69,8 +69,8 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
         [RESOURCE_TYPES.GOLD]: { // NEW: Gold properties
             collectionAmount: 10, // Changed: Gold gives 10 per collection
             xpReward: 15.0, // Gold gives more XP
-            collisionRadius: 70, // Similar size to bush/stone
-            hitRadius: 90,
+            collisionRadius: 100, // Similar size to bush/stone
+            hitRadius: 120,
         }
     };
 
