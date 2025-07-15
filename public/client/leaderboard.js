@@ -1,42 +1,30 @@
-// leaderboard.js - Handles client-side leaderboard functionality
-
 let leaderboardContainer;
 let leaderboardList;
 
-/**
- * Initializes the leaderboard system.
- * This function should be called once when the game starts.
- */
 export function initLeaderboard() {
     leaderboardContainer = document.getElementById('leaderboardContainer');
     leaderboardList = document.getElementById('leaderboardList');
 
     if (!leaderboardContainer || !leaderboardList) {
-        console.error("Leaderboard UI elements not found. Make sure leaderboardContainer and leaderboardList exist in index.html.");
+        console.error("leaderboard not loading");
         return;
     }
-
-    console.log("Leaderboard system initialized.");
 }
 
 /**
- * Updates the leaderboard display with current player data.
- * @param {object} players - An object containing all player data, keyed by player ID.
- * @param {string} myId - The ID of the current client's player.
- * @param {string|null} topKillerId - The ID of the current top killer, or null if none.
+ * @param {object} players 
+ * @param {string} myId 
  */
-export function updateLeaderboard(players, myId, topKillerId) {
+export function updateLeaderboard(players, myId) {
     if (!leaderboardList) {
-        console.warn("Leaderboard list element not found, cannot update leaderboard.");
+        console.warn("lLeaderboard list");
         return;
     }
 
-    // Convert players object to an array, filter out dead players, and sort by gold
     const sortedPlayers = Object.values(players)
-        .filter(player => !player.isDead) // Only show living players
-        .sort((a, b) => (b.inventory.gold || 0) - (a.inventory.gold || 0)); // Sort by gold (descending)
+        .filter(player => !player.isDead)
+        .sort((a, b) => (b.inventory.gold || 0) - (a.inventory.gold || 0));
 
-    // Clear existing list items
     leaderboardList.innerHTML = '';
 
     // Add top 10 players to the list
@@ -50,9 +38,8 @@ export function updateLeaderboard(players, myId, topKillerId) {
 
         const nameSpan = document.createElement('span');
         nameSpan.classList.add('name');
-        nameSpan.textContent = player.name || "Unnamed";
+        nameSpan.textContent = (player.name || "Unnamed");
         
-        // Highlight current player
         if (player.id === myId) {
             nameSpan.style.fontWeight = 'bold';
             nameSpan.style.color = 'white';
@@ -60,24 +47,12 @@ export function updateLeaderboard(players, myId, topKillerId) {
             nameSpan.style.color = '#AAAAAA';
         }
 
-        // NEW: Add skull image if this player is the top killer and has kills
-        // Ensure the skull is only shown if the top killer actually has kills.
-        if (topKillerId && player.id === topKillerId && (player.inventory.kills || 0) > 0) {
-            const skullImg = document.createElement('img');
-            skullImg.src = 'assets/Skull.webp';
-            skullImg.alt = 'Top Killer';
-            skullImg.classList.add('skull-icon'); // Add a class for CSS styling
-            // Prepend the skull image to the name span, or append to listItem directly
-            // Appending to listItem directly gives more control over layout with flexbox
-            listItem.appendChild(skullImg); 
-        }
-
-        listItem.appendChild(rankSpan);
-        listItem.appendChild(nameSpan);
-        
         const goldSpan = document.createElement('span');
         goldSpan.classList.add('gold');
         goldSpan.textContent = Math.floor(player.inventory.gold || 0);
+
+        listItem.appendChild(rankSpan);
+        listItem.appendChild(nameSpan);
         listItem.appendChild(goldSpan);
 
         leaderboardList.appendChild(listItem);
