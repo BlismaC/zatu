@@ -22,8 +22,8 @@ const leaderboardContainer = document.getElementById('leaderboardContainer');
 
 
 // --- Game Constants ---
-export const worldWidth = 4000; // Export
-export const worldHeight = 4000; // Export
+export const worldWidth = 10000; // Export
+export const worldHeight = 10000; // Export
 export const MAX_HEALTH = 100; // Export
 export const cameraLerpFactor = 0.01; // Export
 export const PLAYER_SMOOTHING_FACTOR = 15; // Export
