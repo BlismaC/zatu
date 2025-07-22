@@ -40,7 +40,7 @@ import { getResSprite } from './resourceDesigns.js';
 
 // --- NEW: Import drawMinimap from its dedicated file ---
 import { drawMinimap } from './map.js';
-
+import { drawHotbar } from './hotbar.js';
 
 // --- Ageing System UI Constants ---
 const XP_BAR_WIDTH = 250;
@@ -167,6 +167,7 @@ export function draw(ctx, canvas, players, myId, resources, cameraX, cameraY, de
     // Only draw minimap, ping, and ageing UI if the player is NOT dead.
     // This prevents them from showing when the main menu is up.
     if (!me.isDead) {
+        drawHotbar(ctx, canvas);
         drawMinimap(ctx, canvas, players, myId, worldWidth, worldHeight);
         drawPingCounter(ctx, canvas, currentPing, PING_FONT_SIZE, PING_TEXT_COLOR, PING_BACKGROUND_COLOR, PING_BORDER_RADIUS, PING_PADDING_X, PING_PADDING_Y);
         // Draw Ageing System UI
