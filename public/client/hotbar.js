@@ -229,4 +229,4 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 }
 
 // Export hotbar and the new setter function
-export { hotbar, getActiveItem, setActiveSlotIndex, activeSlotIndex }; // Removed activeSlotIndex direct export
+export { hotbar, getActiveItem, setActiveSlotIndex }; // Removed activeSlotIndex direct export
