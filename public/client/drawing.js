@@ -439,7 +439,7 @@ export function drawAgeingUI(ctx, canvas, player) {
 
     // Calculate XP bar position (bottom-center)
     const xpBarX = (canvas.width / 2) - (XP_BAR_WIDTH / 2);
-    const xpBarY = canvas.height - XP_BAR_HEIGHT - 60; // 30px from the bottom
+    const xpBarY = canvas.height - XP_BAR_HEIGHT - 90; // 30px from the bottom
 
     // --- Draw XP Bar Background ---
     ctx.fillStyle = XP_BAR_BACKGROUND_COLOR;
