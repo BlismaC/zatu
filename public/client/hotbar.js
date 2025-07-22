@@ -165,3 +165,5 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
         return this;
     };
 }
+
+export { hotbar, activeSlotIndex };
