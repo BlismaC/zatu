@@ -285,8 +285,30 @@ function startGame() {
     // Initialize chat input to be hidden
     toggleChatInputVisibility(false); // Ensure it's hidden when game starts
 
-    // Global keydown/keyup listeners for chat and general game input
+    // hotbar
    window.addEventListener('keydown', handleHotbarInput);
+   canvas.addEventListener('click', (e) => {
+        const visibleSlots = hotbar.map((item, index) => item ? index : null).filter(i => i !== null);
+        const numVisible = visibleSlots.length;
+        if (numVisible === 0) return;
+
+        const totalWidth = numVisible * 60 + (numVisible - 1) * 5; // HOTBAR_SLOT_SIZE + HOTBAR_SPACING
+        const startX = (canvas.width / 2) - (totalWidth / 2);
+        const startY = canvas.height - 60 - 10; // HOTBAR_SLOT_SIZE + HOTBAR_PADDING
+
+        visibleSlots.forEach((slotIndex, i) => {
+            const slotX = startX + i * (60 + 5);
+            const slotY = startY;
+
+            if (
+                mouseX >= slotX && mouseX <= slotX + 60 &&
+                mouseY >= slotY && mouseY <= slotY + 60
+            ) {
+                activeSlotIndex = slotIndex;
+            }
+        });
+    });
+
    document.addEventListener("keydown", (e) => {
     const currentTime = Date.now();
 
