@@ -140,7 +140,9 @@ export const CHAT_BUBBLE_BORDER_RADIUS = 10;
 
 // NEW: Dead Player Hide Delay
 export const DEAD_PLAYER_HIDE_DELAY = 10000; // 10 seconds in milliseconds
+// In main.js
 
+import { initHotbar, handleHotbarInput, addItemToHotbar, getActiveItem, removeActiveItem } from './hotbar.js';
 
 // --- Game State Variables ---
 export let cameraX = 0; // Export
@@ -409,8 +411,8 @@ function startGame() {
 
         socket.emit("send-name", { id: myId, name: playerName });
 
-        // Initialize leaderboard after game starts
         initLeaderboard();
+        initHotbar();
     });
 
     socket.on("player-moved", (data) => {
