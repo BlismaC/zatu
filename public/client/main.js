@@ -288,8 +288,8 @@ function startGame() {
     // Global keydown/keyup listeners for chat and general game input
    document.addEventListener("keydown", (e) => {
     const currentTime = Date.now();
-    handleHotbarInput();
-    
+    handleHotbarInput(e);
+
     //  const isMainMenuVisible = mainMenu.style.display === 'block' ? true : false;
     const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
     const me = players[myId];
