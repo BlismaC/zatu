@@ -10,8 +10,8 @@ const HOTBAR_SLOT_SIZE = 60; // Size of each square hotbar slot
 const HOTBAR_PADDING = 10; // Padding around the hotbar
 const HOTBAR_SPACING = 5; // Spacing between slots
 const HOTBAR_BACKGROUND_COLOR = 'rgba(0, 0, 0, 0.6)'; // Semi-transparent black
-const HOTBAR_BORDER_COLOR = '#444'; // Dark gray border
-const HOTBAR_ACTIVE_BORDER_COLOR = '#FFFF00'; // Yellow for active slot
+const HOTBAR_BORDER_COLOR = 'rgba(0, 0, 0, 0.6)'; // Dark gray border
+const HOTBAR_ACTIVE_BORDER_COLOR = 'white'; // White
 const HOTBAR_BORDER_WIDTH = 2; // Border width for slots
 const HOTBAR_ACTIVE_BORDER_WIDTH = 4; // Thicker border for active slot
 const HOTBAR_KEY_FONT_SIZE = 16;
@@ -68,11 +68,10 @@ export function drawHotbar(ctx, canvas) {
         ctx.strokeRect(slotX, slotY, HOTBAR_SLOT_SIZE, HOTBAR_SLOT_SIZE);
 
         if (item) {
-            // Draw item icon (using emoji for now)
-            ctx.font = `${HOTBAR_SLOT_SIZE * 0.7}px Arial`; // Make emoji large
+            ctx.font = `${HOTBAR_SLOT_SIZE * 0.7}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'white'; // Emojis usually ignore fillStyle, but good practice
+            ctx.fillStyle = 'white'; 
             ctx.fillText(PLACEHOLDER_ICONS[item.iconSrc] || '❓', slotX + HOTBAR_SLOT_SIZE / 2, slotY + HOTBAR_SLOT_SIZE / 2);
 
             // Draw item quantity (if applicable)
