@@ -1,85 +1,135 @@
-// --- Imports from main.js (Constants for UI positioning and colors) ---
-import {
-    canvas, worldWidth, worldHeight,
-    playerFillColor, playerOutlineColor,
-    MAX_HEALTH // To align with existing bar logic if needed, though for XP it's separate
-} from './main.js';
+// chat.js - Handles client-side chat functionality
 
-// --- Leveling UI Constants ---
-const XP_BAR_WIDTH = 250;
-const XP_BAR_HEIGHT = 20;
-const XP_BAR_BORDER_RADIUS = 10;
-const XP_BAR_BACKGROUND_COLOR = "rgba(0,0,0,0.7)"; // Dark background
-const XP_BAR_FILL_COLOR = "#00BFFF"; // Bright blue for XP
-const XP_BAR_OUTLINE_COLOR = "black";
-const XP_BAR_OUTLINE_WIDTH = 2;
+// DOM elements for the chat UI (these will be added to index.html)
+let chatMessagesDiv; // Div to display chat messages
+let chatInput;       // Input field for typing messages
+let chatSendButton;  // Button to send messages
+let chatContainer;   // Overall chat container
 
-const AGE_FONT_SIZE = 24;
-const AGE_TEXT_COLOR = "white";
-const AGE_TEXT_OUTLINE_COLOR = "black";
-const AGE_TEXT_OUTLINE_WIDTH = 4;
+let socket; // Reference to the Socket.IO client socket
 
-const XP_TEXT_FONT_SIZE = 16;
-const XP_TEXT_COLOR = "white";
+// Configuration constants for chat UI
+const MAX_CHAT_MESSAGES = 100; // Limit the number of messages displayed
+const CHAT_AUTO_SCROLL_THRESHOLD = 50; // Pixels from bottom to trigger auto-scroll
 
-// Function to draw the player's XP bar and level
-export function drawAgeingUI(ctx, canvas, player) {
-    if (!player || player.isDead) return;
+/**
+ * Initializes the chat system.
+ * This function should be called once when the game starts, after the socket is established.
+ * @param {SocketIO.Socket} gameSocket - The Socket.IO client socket instance.
+ */
+export function initChat(gameSocket) {
+    socket = gameSocket;
 
-    // Calculate XP bar position (e.g., top-center)
-    const xpBarX = (canvas.width / 2) - (XP_BAR_WIDTH / 2);
-    const xpBarY = 90;
+    // Get references to the HTML elements
+    chatContainer = document.getElementById('chatContainer');
+    chatMessagesDiv = document.getElementById('chatMessages');
+    chatInput = document.getElementById('chatInput');
+    chatSendButton = document.getElementById('chatSendButton');
 
-    // Draw XP Bar Background
-    ctx.fillStyle = XP_BAR_BACKGROUND_COLOR;
-    ctx.beginPath();
-    ctx.roundRect(xpBarX, xpBarY, XP_BAR_WIDTH, XP_BAR_HEIGHT, XP_BAR_BORDER_RADIUS);
-    ctx.fill();
-
-    // Calculate XP percentage
-    let xpPercentage = 0;
-    if (player.xpToNextAge > 0) {
-        xpPercentage = player.xp / player.xpToNextAge;
-        xpPercentage = Math.max(0, Math.min(xpPercentage, 1)); // Clamp between 0 and 1
+    if (!chatContainer || !chatMessagesDiv || !chatInput || !chatSendButton) {
+        console.error("Chat UI elements not found. Make sure chatContainer, chatMessages, chatInput, and chatSendButton exist in index.html.");
+        return;
     }
 
-    // Draw XP Bar Fill
-    ctx.fillStyle = XP_BAR_FILL_COLOR;
-    ctx.beginPath();
-    ctx.roundRect(xpBarX, xpBarY, XP_BAR_WIDTH * xpPercentage, XP_BAR_HEIGHT, XP_BAR_BORDER_RADIUS);
-    ctx.fill();
+    // Event listener for sending messages via button click
+    chatSendButton.addEventListener('click', sendMessage);
 
-    // Draw XP Bar Outline
-    ctx.strokeStyle = XP_BAR_OUTLINE_COLOR;
-    ctx.lineWidth = XP_BAR_OUTLINE_WIDTH;
-    ctx.beginPath();
-    ctx.roundRect(xpBarX, xpBarY, XP_BAR_WIDTH, XP_BAR_HEIGHT, XP_BAR_BORDER_RADIUS);
-    ctx.stroke();
+    // Event listener for sending messages via Enter key in the input field
+    chatInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+            sendMessage();
+            event.preventDefault(); // Prevent default Enter key behavior (e.g., form submission)
+        }
+    });
 
-    // Draw Level Text (e.g., "Lv. 1")
-    ctx.font = `bold ${AGE_FONT_SIZE}px Arial`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    // Listen for incoming chat messages from the server
+    socket.on('chat-message', (data) => {
+        addMessageToChat(data.senderName, data.message, data.senderId === socket.id);
+    });
 
-    const ageText = `Lv. ${player.age}`;
-    const ageTextX = xpBarX - AGE_FONT_SIZE * 1.5; // Position to the left of the bar
-    const ageTextY = xpBarY + XP_BAR_HEIGHT / 2;
+    console.log("Chat system initialized.");
+}
 
-    ctx.strokeStyle = AGE_TEXT_OUTLINE_COLOR;
-    ctx.lineWidth = AGE_TEXT_OUTLINE_WIDTH;
-    ctx.strokeText(ageText, ageTextX, ageTextY);
-    ctx.fillStyle = AGE_TEXT_COLOR;
-    ctx.fillText(ageText, ageTextX, ageTextY);
+/**
+ * Sends a chat message to the server.
+ */
+function sendMessage() {
+    const message = chatInput.value.trim();
+    if (message.length > 0) {
+        // Emit the 'chat-message' event to the server
+        socket.emit('chat-message', { message: message });
+        chatInput.value = ''; // Clear the input field
+    }
+}
 
-    // Draw XP / Next Level Text (e.g., "50 / 100 XP")
-    ctx.font = `${XP_TEXT_FONT_SIZE}px Arial`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+/**
+ * Adds a message to the chat display.
+ * @param {string} senderName - The name of the sender.
+ * @param {string} message - The message content.
+ * @param {boolean} isSelf - True if the message is from the current user, false otherwise.
+ */
+function addMessageToChat(senderName, message, isSelf) {
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('chat-message');
+    if (isSelf) {
+        messageElement.classList.add('self');
+    } else {
+        messageElement.classList.add('other');
+    }
 
-    const xpDisplayText = `${player.xp} / ${player.xpToNextAge} XP`;
-    const xpTextX = xpBarX + XP_BAR_WIDTH / 2;
-    const xpTextY = xpBarY + XP_BAR_HEIGHT / 2;
+    // Create a span for the sender's name
+    const senderSpan = document.createElement('span');
+    senderSpan.classList.add('sender-name');
+    senderSpan.textContent = senderName + ": ";
 
-    ctx.fillStyle = XP_TEXT_COLOR;
-    ctx.fillText(xpDisplayText, xpTextX, xpTextY);
+    // Create a span for the message text
+    const messageTextSpan = document.createElement('span');
+    messageTextSpan.classList.add('message-text');
+    messageTextSpan.textContent = message;
+
+    messageElement.appendChild(senderSpan);
+    messageElement.appendChild(messageTextSpan);
+    
+    chatMessagesDiv.appendChild(messageElement);
+
+    // Remove old messages if the limit is exceeded
+    while (chatMessagesDiv.children.length > MAX_CHAT_MESSAGES) {
+        chatMessagesDiv.removeChild(chatMessagesDiv.firstChild);
+    }
+
+    // Auto-scroll to the bottom if the user is near the bottom
+    if (chatMessagesDiv.scrollHeight - chatMessagesDiv.clientHeight <= chatMessagesDiv.scrollTop + CHAT_AUTO_SCROLL_THRESHOLD) {
+        chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
+    }
+}
+
+/**
+ * Toggles the visibility of the chat window.
+ */
+export function toggleChatVisibility() {
+    if (chatContainer) {
+        chatContainer.style.display = (chatContainer.style.display === 'block') ? 'none' : 'block';
+    }
+    // Optionally focus the input when showing the chat
+    if (chatContainer.style.display === 'block' && chatInput) {
+        chatInput.focus();
+    }
+}
+
+/**
+ * Shows the chat window.
+ */
+export function showChat() {
+    if (chatContainer) {
+        chatContainer.style.display = 'block';
+    }
+}
+
+/**
+ * Hides the chat window.
+ */
+export function hideChat() {
+    if (chatContainer) {
+        chatContainer.style.display = 'none';
+    }
 }
