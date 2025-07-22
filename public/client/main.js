@@ -142,7 +142,7 @@ export const CHAT_BUBBLE_BORDER_RADIUS = 10;
 export const DEAD_PLAYER_HIDE_DELAY = 10000; // 10 seconds in milliseconds
 // In main.js
 
-import { initHotbar, handleHotbarInput, addItemToHotbar, getActiveItem, removeActiveItem } from './hotbar.js';
+import { hotbar, initHotbar, handleHotbarInput, addItemToHotbar, getActiveItem, removeActiveItem } from './hotbar.js';
 
 // --- Game State Variables ---
 export let cameraX = 0; // Export
