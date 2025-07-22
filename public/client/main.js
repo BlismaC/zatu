@@ -286,9 +286,9 @@ function startGame() {
     toggleChatInputVisibility(false); // Ensure it's hidden when game starts
 
     // Global keydown/keyup listeners for chat and general game input
+   window.addEventListener('keydown', handleHotbarInput);
    document.addEventListener("keydown", (e) => {
     const currentTime = Date.now();
-    handleHotbarInput(e);
 
     //  const isMainMenuVisible = mainMenu.style.display === 'block' ? true : false;
     const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
