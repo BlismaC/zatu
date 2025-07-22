@@ -288,7 +288,7 @@ function startGame() {
     // hotbar
    window.addEventListener('keydown', handleHotbarInput);
    canvas.addEventListener('click', (e) => {
-        const visibleSlots = hotbar.map((item, index) => item ? index : null).filter(i => i !== null);
+        let visibleSlots = hotbar.map((item, index) => item ? index : null).filter(i => i !== null);
         const numVisible = visibleSlots.length;
         if (numVisible === 0) return;
 
