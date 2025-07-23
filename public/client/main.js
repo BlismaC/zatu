@@ -437,9 +437,6 @@ function startGame() {
 
         initLeaderboard();
         initHotbar();
-        updateDamageTexts(deltaTime);
-        drawDamageTexts(ctx);
-        console.log("drawing dmg texts");
     });
 
     socket.on("player-moved", (data) => {
@@ -655,6 +652,9 @@ function loop() {
     // so the canvas is always live in the background.
     draw(ctx, canvas, players, myId, resources, cameraX, cameraY, deltaTime, currentPing, CHAT_BUBBLE_DURATION);
 
+    updateDamageTexts(deltaTime);
+    drawDamageTexts(ctx);
+    console.log("drawing dmg texts");
     const me = players[myId];
     // Camera movement and resource counter updates only if player exists and is not dead
     // This ensures the camera stays put when dead and menu is up.
