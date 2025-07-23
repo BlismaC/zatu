@@ -161,7 +161,7 @@ let pingSendTime = 0;
 import { interpolateColor, lerpAngle, clamp } from './utils.js';
 import { draw } from './drawing.js'; // Corrected import syntax
 import { initLeaderboard, updateLeaderboard } from './leaderboard.js'; // NEW: Import leaderboard functions
-
+import { createDamageText, updateDamageTexts, drawDamageTexts } from './damageText.js';
 
 // --- Event Listeners (initial, non-chat related) ---
 canvas.addEventListener("mousemove", (e) => {
@@ -437,6 +437,8 @@ function startGame() {
 
         initLeaderboard();
         initHotbar();
+        updateDamageTexts(deltaTime);
+        drawDamageTexts(ctx);
     });
 
     socket.on("player-moved", (data) => {
@@ -470,6 +472,10 @@ function startGame() {
                     p.lastDamageTime = Date.now();
                     p.damageWiggleX = (Math.random() - 0.5) * PLAYER_DAMAGE_WIGGLE_STRENGTH;
                     p.damageWiggleY = (Math.random() - 0.5) * PLAYER_DAMAGE_WIGGLE_STRENGTH;
+ 
+                    const damageAmount = p.lastKnownHealth - serverPlayer.health;
+                    const isOwnPlayer = (id === myId);
+                    createDamageText(p.visualX, p.visualY, damageAmount, isOwnPlayer, cameraX, cameraY);
                 }
 
                 // Preserve client-side visual states including chat message state
