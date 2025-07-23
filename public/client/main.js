@@ -439,6 +439,7 @@ function startGame() {
         initHotbar();
         updateDamageTexts(deltaTime);
         drawDamageTexts(ctx);
+        console.log("drawing dmg texts");
     });
 
     socket.on("player-moved", (data) => {
