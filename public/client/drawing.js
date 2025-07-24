@@ -1,3 +1,5 @@
+// drawing.js - Handles all canvas drawing operations
+
 // --- Imports from main.js (Constants and Global State Access) ---
 import {
     worldWidth, worldHeight, MAX_HEALTH, PLAYER_SMOOTHING_FACTOR, TRAIL_LENGTH, TRAIL_MAX_ALPHA,
@@ -40,7 +42,16 @@ import { getResSprite } from './resourceDesigns.js';
 
 // --- NEW: Import drawMinimap from its dedicated file ---
 import { drawMinimap } from './map.js';
-import { drawHotbar } from './hotbar.js';
+// Note: drawHotbar is called directly from main.js, so it's not imported here
+// Note: drawWeaponSelectionUI is called directly from main.js, so it's not imported here
+
+// NEW: Load the skull image asset
+const skullImage = new Image();
+skullImage.src = 'assets/Skull.webp';
+skullImage.onerror = () => {
+    console.error("Failed to load skull image: assets/Skull.webp");
+};
+
 
 // --- Ageing System UI Constants ---
 const XP_BAR_WIDTH = 250;
@@ -58,8 +69,21 @@ const AGE_TEXT_OUTLINE_WIDTH = 4;
 
 // --- Drawing Functions ---
 
-// Main draw orchestrator (updated to accept chatBubbleDuration)
-export function draw(ctx, canvas, players, myId, resources, cameraX, cameraY, deltaTime, currentPing, chatBubbleDuration) {
+/**
+ * Main drawing function for the game canvas.
+ * @param {CanvasRenderingContext2D} ctx - The 2D rendering context of the canvas.
+ * @param {HTMLCanvasElement} canvas - The game canvas element.
+ * @param {object} players - Object containing all player data.
+ * @param {string} myId - The ID of the local player.
+ * @param {object} resources - Object containing all resource data.
+ * @param {number} cameraX - The camera's current X position.
+ * @param {number} cameraY - The camera's current Y position.
+ * @param {number} deltaTime - Time elapsed since the last frame in seconds.
+ * @param {number} currentPing - Current network ping in milliseconds.
+ * @param {number} chatBubbleDuration - Duration for chat bubbles to display.
+ * @param {string|null} topKillerId - The ID of the current top killer, or null if none.
+ */
+export function draw(ctx, canvas, players, myId, resources, cameraX, cameraY, deltaTime, currentPing, chatBubbleDuration, topKillerId) {
     // Clear canvas background with world border color
     ctx.fillStyle = worldBorderColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -142,7 +166,7 @@ export function draw(ctx, canvas, players, myId, resources, cameraX, cameraY, de
         const p = players[id];
         // Only draw player if they are not dead OR if they are dead but still within the hide delay
         if (!p.isDead || (p.isDead && (now - p.deathTime < DEAD_PLAYER_HIDE_DELAY))) {
-            drawPlayer(ctx, p, now);
+            drawPlayer(ctx, p, now); // Pass 'now' for hit flash
         }
     }
 
@@ -155,9 +179,12 @@ export function draw(ctx, canvas, players, myId, resources, cameraX, cameraY, de
     // 3. Draw Player Names and Health Bars AND Chat Bubbles (these should always be on top of everything else)
     for (const id in players) {
         const p = players[id];
-        // Only draw player overlay if they are not dead
-        if (!p.isDead) {
-            drawPlayerOverlay(ctx, p, now, chatBubbleDuration); // Pass now and duration
+        // Only draw player overlay if they are not dead OR if they are the top killer and alive (for skull icon)
+        if (!p.isDead) { // If player is alive, draw their overlay
+            drawPlayerOverlay(ctx, p, now, chatBubbleDuration, topKillerId); // Pass now, duration, and topKillerId
+        } else if (p.isDead && (now - p.deathTime < DEAD_PLAYER_HIDE_DELAY)) {
+             // For recently dead players, you might still want names, but not health bars
+             // For simplicity, let's keep overlays only for living players.
         }
     }
 
@@ -166,13 +193,13 @@ export function draw(ctx, canvas, players, myId, resources, cameraX, cameraY, de
     // Draw UI elements (not affected by camera)
     // Only draw minimap, ping, and ageing UI if the player is NOT dead.
     // This prevents them from showing when the main menu is up.
-    if (!me.isDead) {
-        drawHotbar(ctx, canvas);
-        drawMinimap(ctx, canvas, players, myId, worldWidth, worldHeight);
+    if (me && !me.isDead) { // Ensure 'me' exists before checking isDead
+        drawMinimap(ctx, canvas, players, myId, worldWidth, worldHeight); // Added worldWidth/Height as parameters for drawMinimap
         drawPingCounter(ctx, canvas, currentPing, PING_FONT_SIZE, PING_TEXT_COLOR, PING_BACKGROUND_COLOR, PING_BORDER_RADIUS, PING_PADDING_X, PING_PADDING_Y);
         // Draw Ageing System UI
         drawAgeingUI(ctx, canvas, me);
     }
+    // Hotbar and WeaponSelectionUI are drawn in main.js loop, so no calls here.
 }
 
 // Player body drawing (now with damage visuals, without name/health bar)
@@ -262,7 +289,7 @@ function drawPlayer(ctx, p, now) {
 }
 
 // Function for drawing player name and health bar (always on top)
-function drawPlayerOverlay(ctx, p, now, chatBubbleDuration) {
+function drawPlayerOverlay(ctx, p, now, chatBubbleDuration, topKillerId) { // Added topKillerId parameter
     // Only draw health bar, name, and chat bubble if player is NOT dead
     if (p.isDead) return;
 
@@ -303,6 +330,20 @@ function drawPlayerOverlay(ctx, p, now, chatBubbleDuration) {
     ctx.fillStyle = "white";
     ctx.fillText(p.name || "Unnamed", p.visualX, p.visualY - playerBodyRadiusY - 25);
     ctx.globalAlpha = 1.0;
+
+    // NEW: Draw skull image if this player is the top killer and the image is loaded
+    if (topKillerId && p.id === topKillerId && (p.inventory.kills || 0) > 0 && skullImage.complete && skullImage.naturalWidth > 0) {
+        const skullWidth = 24; // Adjust size of the skull
+        const skullHeight = 24; // Adjust size of the skull
+
+        // Measure the name text to position the skull correctly
+        const nameMetrics = ctx.measureText(p.name || "Unnamed");
+        // Position the skull to the right of the player's name
+        const skullDrawX = p.visualX + nameMetrics.width / 2 + 5; // 5px padding to the right of the name
+        const skullDrawY = (p.visualY - playerBodyRadiusY - 25) - skullHeight / 2; // Vertically center with the name's baseline
+
+        ctx.drawImage(skullImage, skullDrawX, skullDrawY, skullWidth, skullHeight);
+    }
 
     // NEW: Draw chat message bubble
     drawChatMessageBubble(ctx, p, now, chatBubbleDuration);
@@ -415,23 +456,40 @@ function drawGrid(ctx, canvas, cameraX, cameraY, worldWidth, worldHeight, gridSi
 function drawPingCounter(ctx, canvas, currentPing, PING_FONT_SIZE, PING_TEXT_COLOR, PING_BACKGROUND_COLOR, PING_BORDER_RADIUS, PING_PADDING_X, PING_PADDING_Y) {
     const pingText = `Ping: ${currentPing}ms`;
     ctx.font = `bold ${PING_FONT_SIZE}px Arial`;
-    const textWidth = ctx.measureText(pingText).width;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "top";
 
-    const panelWidth = textWidth + PING_PADDING_X * 2;
-    const panelHeight = PING_FONT_SIZE + PING_PADDING_Y * 2;
-    const panelX = (canvas.width / 2) - (panelWidth / 2);
-    const panelY = PING_PADDING_Y;
+    // Measure text to create a background rectangle
+    const textMetrics = ctx.measureText(pingText);
+    const textWidth = textMetrics.width;
+    const textHeight = PING_FONT_SIZE * 1.2; // Approximate height
 
+    const paddingX = PING_PADDING_X;
+    const paddingY = PING_PADDING_Y;
+
+    const bgX = canvas.width - paddingX - textWidth - paddingX;
+    const bgY = canvas.height - paddingY - textHeight - paddingY;
+    const bgWidth = textWidth + 2 * paddingX;
+    const bgHeight = textHeight + 2 * paddingY;
+
+    // Draw background rectangle
     ctx.fillStyle = PING_BACKGROUND_COLOR;
     ctx.beginPath();
-    ctx.roundRect(panelX, panelY, panelWidth, panelHeight, PING_BORDER_RADIUS);
+    ctx.roundRect(bgX, bgY, bgWidth, bgHeight, PING_BORDER_RADIUS);
     ctx.fill();
 
+    // Draw ping text
     ctx.fillStyle = PING_TEXT_COLOR;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(pingText, canvas.width / 2, panelY + panelHeight / 2);
+    ctx.fillText(pingText, canvas.width - paddingX, canvas.height - paddingY - textHeight / 2);
 }
+
+
+/**
+ * Draws a chat bubble above a player.
+ */
+// This function is now internal to drawing.js and called by drawPlayerOverlay
+// No changes needed here as it's already defined above.
+
 
 // Function to draw the player's XP bar and age
 export function drawAgeingUI(ctx, canvas, player) {
@@ -439,7 +497,8 @@ export function drawAgeingUI(ctx, canvas, player) {
 
     // Calculate XP bar position (bottom-center)
     const xpBarX = (canvas.width / 2) - (XP_BAR_WIDTH / 2);
-    const xpBarY = canvas.height - XP_BAR_HEIGHT - 90; // 30px from the bottom
+    // Adjusted XP_BAR_Y to place it higher than the hotbar but still near bottom
+    const xpBarY = canvas.height - XP_BAR_HEIGHT - 90; // Moved from 30 to 90
 
     // --- Draw XP Bar Background ---
     ctx.fillStyle = XP_BAR_BACKGROUND_COLOR;
