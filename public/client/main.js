@@ -435,8 +435,8 @@ function startGame() {
 
         const me = players[myId];
         if (me) {
-            cameraX = clamp(me.x - canvas.width / 2, 0, worldWidth - canvas.width);
-            cameraY = clamp(me.y - canvas.height / 2, 0, worldHeight - canvas.height);
+            cameraX = clamp(me.x - canvas.width / 5, 0, worldWidth - canvas.width);
+            cameraY = clamp(me.y - canvas.height / 5, 0, worldHeight - canvas.height);
             // NEW: Update weapon selection UI state on initial load for the local player
             updateWeaponSelectionUI(me.unlockedWeapons, me.equippedWeapon);
         }
@@ -446,7 +446,7 @@ function startGame() {
         // hotbar and weapon selection UI are initialized earlier in startGame
     });
 
-    socket.on("player-moved", (data) => {
+    socket.on("player-moved", (data) => { // NEED AN UPDATE ASAP.
         const allPlayersData = data.players;
         const allResourcesData = data.resources;
         const serverTopKillerId = data.topKillerId; // Get top killer ID from server

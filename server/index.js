@@ -209,6 +209,8 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
             console.log(`Server: ${player.name} aged up to Age ${player.age}!`);
             // Potentially add age-up effects here (e.g., heal, stat increase)
             player.health = MAX_HEALTH; // Fully heal on age up
+
+            // idea: we can add sum skill panel thing like in diep.io and at every age up it maybe give us 1-2 points
         }
     }
 
