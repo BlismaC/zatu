@@ -3,7 +3,7 @@
 // --- Constants for Damage Text ---
 const DAMAGE_TEXT_RISE_SPEED = 0.05; // Pixels per millisecond (adjust for desired speed)
 const DAMAGE_TEXT_FADE_DURATION = 1000; // Milliseconds for text to fade out
-const DAMAGE_TEXT_FONT_SIZE = 24; // Font size for damage numbers
+const DAMAGE_TEXT_FONT_SIZE = 34; // Font size for damage numbers
 const DAMAGE_TEXT_FONT_FAMILY = "Arial Black"; // Bold, impactful font
 const DAMAGE_TEXT_OUTLINE_WIDTH = 2; // Outline for better visibility
 
