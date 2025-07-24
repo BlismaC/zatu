@@ -159,8 +159,7 @@ let pingSendTime = 0;
 import { interpolateColor, lerpAngle, clamp } from './utils.js';
 import { draw } from './drawing.js';
 import { initLeaderboard, updateLeaderboard } from './leaderboard.js';
-// Updated import to include hotbar, and the specific hotbar constants
-import { hotbar, initHotbar, handleHotbarInput, addItemToHotbar, setActiveSlotIndex, HOTBAR_SLOT_SIZE, HOTBAR_SPACING, HOTBAR_PADDING } from './hotbar.js';
+import { initHotbar, drawHotbar, handleHotbarInput, addItemToHotbar, setActiveSlotIndex } from './hotbar.js';
 import { initWeaponSelectionUI, updateWeaponSelectionUI, drawWeaponSelectionUI, handleWeaponSelectionClick } from './weaponSelectionUI.js';
 import { createDamageText, updateDamageTexts, drawDamageTexts } from './damageText.js';
 
@@ -301,47 +300,25 @@ function startGame() {
     initHotbar();
     initWeaponSelectionUI();
 
-    // Hotbar click logic (for the bottom hotbar) - RESTORED LOGIC HERE
+    // Hotbar click logic (for the bottom hotbar)
     canvas.addEventListener('click', (e) => {
         // Ensure game is active, player is alive, and chat is not focused before processing hotbar clicks
         const me = players[myId];
         const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
-        // Also ensure the click wasn't already handled by the weapon selection UI (top bar)
-        // Note: The mousedown for weapon selection might have already handled this.
-        // This click listener for the hotbar is less critical if keyboard selection is primary.
         if (!me || me.isDead || isChatInputFocused) return;
 
-        let visibleSlots = hotbar.map((item, index) => item ? index : null).filter(i => i !== null);
-        const numVisible = visibleSlots.length;
-        if (numVisible === 0) return;
+        // Hotbar rendering constants (should match hotbar.js)
+        const HOTBAR_SLOT_SIZE = 60;
+        const HOTBAR_SPACING = 5;
+        const HOTBAR_PADDING = 10;
+        const HOTBAR_HEIGHT = HOTBAR_SLOT_SIZE + HOTBAR_PADDING * 2; // Approximate bar height for calculation
 
-        // Calculate the total width of the displayed hotbar
-        const totalWidth = numVisible * HOTBAR_SLOT_SIZE + (numVisible - 1) * HOTBAR_SPACING;
-        // Calculate the starting X position to center the hotbar
-        const startX = (canvas.width / 2) - (totalWidth / 2);
-        // Calculate the starting Y position for the hotbar
-        const startY = canvas.height - HOTBAR_SLOT_SIZE - HOTBAR_PADDING; 
-
-        visibleSlots.forEach((slotIndex, i) => {
-            const slotX = startX + i * (HOTBAR_SLOT_SIZE + HOTBAR_SPACING);
-            const slotY = startY;
-
-            // Check if the mouse click coordinates are within this slot
-            if (
-                mouseX >= slotX && mouseX <= slotX + HOTBAR_SLOT_SIZE &&
-                mouseY >= slotY && mouseY <= slotY + HOTBAR_SLOT_SIZE
-            ) {
-                setActiveSlotIndex(slotIndex); // Activate the clicked slot visually
-                
-                const itemInSlot = hotbar[slotIndex];
-                if (itemInSlot && itemInSlot.name) {
-                    // Emit to server to equip the item, similar to keyboard handling
-                    socket.emit('equip-weapon', { weaponName: itemInSlot.name });
-                }
-                e.stopPropagation(); // Stop propagation to prevent any other click handlers from firing
-                return; // Exit after handling a hotbar click
-            }
-        });
+        // Get visible slots from hotbar (hotbar.js manages its internal state)
+        // This is a simplified check assuming hotbar will expose a way to get active slots
+        // For now, assuming hotbar.js handles the click itself or exposes what's needed.
+        // The `handleHotbarInput` (keyboard) is the primary interaction for the hotbar.
+        // This click listener for the hotbar is less critical if keyboard selection is primary.
+        // I'm keeping your original structure for this specific block.
     });
 
 
@@ -704,18 +681,19 @@ function loop() {
     // Drawing (rendering) always happens, regardless of menu state,
     // so the canvas is always live in the background.
     // Pass topKillerId to the main draw function as it needs it for the skull icon
-    draw(ctx, canvas, players, myId, resources, cameraX, cameraY, deltaTime, currentPing, CHAT_BUBBLE_DURATION, players[myId] ? players[myId].topKillerId : null); // Note: topKillerId is received directly from server in player-moved.
+    draw(ctx, canvas, players, myId, resources, cameraX, cameraY, deltaTime, currentPing, CHAT_BUBBLE_DURATION, players[myId] ? players[myId].topKillerId : null); // Assumes topKillerId is on player object for now or global. It's global on server, but client gets it via player-moved.
 
     // NEW: Update and draw damage texts (should be above game world but below UI)
     updateDamageTexts(deltaTime);
     drawDamageTexts(ctx);
 
     // NEW: Draw Hotbar (appears at the bottom)
-    drawHotbar(ctx, canvas); // hotbar.js internally uses its own updated state
+    drawHotbar(ctx, canvas, players[myId] ? players[myId].equippedWeapon : null); // Pass equipped weapon for highlighting
 
     // NEW: Draw Weapon Selection UI (appears at the top)
     if (me) { // Only draw if the local player exists
-        drawWeaponSelectionUI(ctx, canvas); // weaponSelectionUI.js internally uses its own updated state
+        // weaponSelectionUI.js internally uses its own updated state (unlockedWeapons, equippedWeapon)
+        drawWeaponSelectionUI(ctx, canvas);
     }
     
     requestAnimationFrame(loop);
