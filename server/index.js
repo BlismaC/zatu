@@ -2,6 +2,10 @@ const path = require("path");
 const fastify = require("fastify")({ logger: false });
 const fastifyStatic = require("@fastify/static");
 
+// --- Import Weapon Data ---
+// Ensure weapons.js is accessible in the public directory or adjust path
+const { getWeaponProperties } = require('./public/weapons.js'); // Assuming weapons.js is in public for Node.js modules
+
 // --- Static Files Setup ---
 fastify.register(fastifyStatic, {
     root: path.join(__dirname, "public"), // Assuming 'public' is where index.html and client.js are
@@ -25,6 +29,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
     let resources = {}; // Object to hold all resource nodes (now permanent and infinite)
     let resourceIdCounter = 0; // To assign unique IDs to resources
 
+    // Core Game Constants (now distinct from weapon-specific stats)
     const MAX_HEALTH = 100;
     const WORLD_WIDTH = 10000;
     const WORLD_HEIGHT = 10000;
@@ -32,11 +37,12 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
     const MAX_PLAYER_DIMENSION = PLAYER_COLLISION_RADIUS;
     const PLAYER_SPEED = 8;
     const GAME_TICK_RATE = 1000 / 30;
-    const SWING_COOLDOWN = 400; // Adjusted: Player's personal swing cooldown (decreased for faster hits)
-    const FIST_DAMAGE = 10; // Damage dealt by a player's punch (only to players now)
-    const FIST_REACH = 70; // Adjusted: How far a player's punch reaches
-    const FIST_ARC_HALF_ANGLE = Math.PI / 2; // ADJUSTED: Half a circle (90 degrees or PI/2 radians)
-    const FIST_KNOCKBACK_STRENGTH = 40; // Knockback distance when hitting with fists
+
+    // Base cooldown for hand/default weapon, modified by weapon speed
+    const BASE_SWING_COOLDOWN = 400; // Milliseconds for a 'hands' swing
+    const BASE_FIST_REACH = 70; // Base reach for fist/default weapon
+    const FIST_ARC_HALF_ANGLE = Math.PI / 2; // Half a circle (90 degrees or PI/2 radians)
+
 
     // Resource Type-Specific Constants (New approach for flexible sizes/hitboxes)
     const RESOURCE_TYPES = {
@@ -84,9 +90,8 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
         RESOURCE_TYPES.GOLD // 1 part gold (rarer)
     ];
 
-
     // Cooldown for emitting wiggle events (to prevent spamming clients)
-    const RESOURCE_WIGGLE_EMIT_COOLDOWN = SWING_COOLDOWN;
+    const RESOURCE_WIGGLE_EMIT_COOLDOWN = BASE_SWING_COOLDOWN; // Using base swing cooldown for consistency
 
     // --- Aging System Constants (Renamed from Leveling System) ---
     // XP needed to reach the NEXT age from the CURRENT age.
@@ -101,6 +106,9 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
 
     // NEW: Chat Range for proximity-based messages
     const CHAT_RANGE = 500; // Players within this distance can see the message bubble
+
+    // Variable to track the top killer for client updates
+    let topKillerId = null;
 
     function calculateXpToNextAge(currentAge) {
         if (AGE_XP_REQUIREMENTS[currentAge] !== undefined) {
@@ -280,7 +288,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
     io.on("connection", (socket) => {
         console.log("Server: Player connected:", socket.id);
 
-        // Initialize a new player with aging properties
+        // Initialize a new player with aging properties and default weapon
         players[socket.id] = {
             id: socket.id,
             x: Math.random() * (WORLD_WIDTH - 200) + 100, // Random spawn
@@ -293,6 +301,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
             keys: {},
             inputAngle: 0,
             lastSwingTime: 0,
+            equippedWeapon: 'hands', // NEW: Default equipped weapon
             inventory: { // Simple inventory for resources
                 wood: 0,
                 stone: 0,
@@ -306,7 +315,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
         };
 
         // Send all current players AND resources to the new client
-        socket.emit("init", { players: players, resources: resources });
+        socket.emit("init", { players: players, resources: resources, topKillerId: topKillerId }); // Also send top killer on init
         socket.broadcast.emit("player-joined", players[socket.id]);
 
         socket.on("send-name", (data) => {
@@ -359,7 +368,18 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
             if (!attacker || attacker.isDead) return;
 
             const now = Date.now();
-            if (now - attacker.lastSwingTime < SWING_COOLDOWN) return;
+
+            // Get weapon properties
+            const equippedWeaponData = getWeaponProperties(attacker.equippedWeapon);
+            // Fallback to default hands if for some reason the weapon data isn't found
+            const weaponDamage = equippedWeaponData ? equippedWeaponData.dmg : getWeaponProperties('hands').dmg;
+            const weaponKnockback = equippedWeaponData ? equippedWeaponData.knockback : getWeaponProperties('hands').knockback;
+            const weaponSpeedMultiplier = equippedWeaponData ? equippedWeaponData.speed : getWeaponProperties('hands').speed;
+
+            // Calculate effective cooldown based on weapon speed
+            const effectiveSwingCooldown = BASE_SWING_COOLDOWN / weaponSpeedMultiplier;
+
+            if (now - attacker.lastSwingTime < effectiveSwingCooldown) return;
 
             attacker.lastSwingTime = now;
             io.emit('player-has-swung', socket.id); // Tell clients player started swing animation
@@ -374,24 +394,24 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 const dy_target = target.y - attacker.y;
                 const distance_target = Math.hypot(dx_target, dy_target);
 
-                // Check if target is within the FIST_REACH + player's radius and within the attack arc
-                if (distance_target <= FIST_REACH + PLAYER_COLLISION_RADIUS) {
+                // Check if target is within the weapon's reach + player's radius and within the attack arc
+                if (distance_target <= BASE_FIST_REACH + PLAYER_COLLISION_RADIUS) { // FIST_REACH here represents the general weapon reach
                     const angleToTarget = Math.atan2(dy_target, dx_target);
                     const angleDiff = getShortestAngleDiff(attacker.angle, angleToTarget);
 
                     if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
-                        target.health = Math.max(0, target.health - FIST_DAMAGE);
+                        target.health = Math.max(0, target.health - weaponDamage); // Use dynamic weapon damage
                         if (target.health <= 0) {
                             target.isDead = true;
                             target.deathTime = Date.now(); 
                             console.log(`Server: ${target.name} has been defeated!`);
-                            attacker.inventory.kills = (attacker.inventory.kills || 0) + 1;
+                            attacker.inventory.kills = (attacker.inventory.kills || 0) + 1; // Increment kills
                         }
-                        console.log(`Server: ${attacker.name} hit ${target.name}. ${target.name}'s health is now ${target.health}`);
+                        console.log(`Server: ${attacker.name} hit ${target.name} with ${attacker.equippedWeapon}. ${target.name}'s health is now ${target.health}`);
 
                         const knockbackAngle = angleToTarget;
-                        target.x += Math.cos(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
-                        target.y += Math.sin(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
+                        target.x += Math.cos(knockbackAngle) * weaponKnockback; // Use dynamic weapon knockback
+                        target.y += Math.sin(knockbackAngle) * weaponKnockback;
 
                         target.x = clamp(target.x, MAX_PLAYER_DIMENSION, WORLD_WIDTH - MAX_PLAYER_DIMENSION);
                         target.y = clamp(target.y, MAX_PLAYER_DIMENSION, WORLD_HEIGHT - MAX_PLAYER_DIMENSION);
@@ -406,7 +426,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 const dy_resource = resource.y - attacker.y;
                 const distanceToResource = Math.hypot(dx_resource, dy_resource);
 
-                if (distanceToResource <= FIST_REACH + resource.hitRadius) {
+                if (distanceToResource <= BASE_FIST_REACH + resource.hitRadius) { // FIST_REACH here represents general weapon reach
                     const angleToResource = Math.atan2(dy_resource, dx_resource);
                     const angleDiff = getShortestAngleDiff(attacker.angle, angleToResource);
 
@@ -446,6 +466,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 player.age = 0;
                 player.xp = 0; 
                 player.xpToNextAge = calculateXpToNextAge(0);
+                player.equippedWeapon = 'hands'; // Reset weapon on respawn
             }
         });
 
@@ -466,6 +487,19 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
 
     // --- Server-Side Game Loop ---
     setInterval(() => {
+        // Find the top killer for this tick
+        let currentTopKiller = null;
+        let maxKills = 0;
+        for (const id in players) {
+            const p = players[id];
+            // Only consider living players with at least one kill
+            if (!p.isDead && (p.inventory.kills || 0) > maxKills) {
+                maxKills = p.inventory.kills;
+                currentTopKiller = id;
+            }
+        }
+        topKillerId = currentTopKiller; // Update the global topKillerId
+
         for (const id in players) {
             const player = players[id];
             if (player.isDead) continue; 
@@ -492,6 +526,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
         checkPlayerCollisions();
         checkPlayerResourceCollisions();
 
-        io.emit("player-moved", { players: players, resources: resources });
+        // Send top killer ID with player updates
+        io.emit("player-moved", { players: players, resources: resources, topKillerId: topKillerId });
     }, GAME_TICK_RATE);
 });
