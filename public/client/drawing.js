@@ -452,35 +452,38 @@ function drawGrid(ctx, canvas, cameraX, cameraY, worldWidth, worldHeight, gridSi
     }
 }
 
-// Ping Counter drawing (unchanged)
+// Ping Counter drawing (NOW TOP CENTER)
 function drawPingCounter(ctx, canvas, currentPing, PING_FONT_SIZE, PING_TEXT_COLOR, PING_BACKGROUND_COLOR, PING_BORDER_RADIUS, PING_PADDING_X, PING_PADDING_Y) {
     const pingText = `Ping: ${currentPing}ms`;
     ctx.font = `bold ${PING_FONT_SIZE}px Arial`;
-    ctx.textAlign = "right";
-    ctx.textBaseline = "top";
-
+    
     // Measure text to create a background rectangle
     const textMetrics = ctx.measureText(pingText);
     const textWidth = textMetrics.width;
-    const textHeight = PING_FONT_SIZE * 1.2; // Approximate height
+    // Approximate height, typically PING_FONT_SIZE * 1.2 is a good estimate for text height
+    const textHeight = PING_FONT_SIZE * 1.2; 
 
     const paddingX = PING_PADDING_X;
     const paddingY = PING_PADDING_Y;
 
-    const bgX = canvas.width - paddingX - textWidth - paddingX;
-    const bgY = canvas.height - paddingY - textHeight - paddingY;
-    const bgWidth = textWidth + 2 * paddingX;
-    const bgHeight = textHeight + 2 * paddingY;
+    const panelWidth = textWidth + 2 * paddingX;
+    const panelHeight = textHeight + 2 * paddingY;
+    
+    // Position the panel in the top center
+    const panelX = (canvas.width / 2) - (panelWidth / 2);
+    const panelY = PING_PADDING_Y; // Keep it at the top with a padding offset
 
     // Draw background rectangle
     ctx.fillStyle = PING_BACKGROUND_COLOR;
     ctx.beginPath();
-    ctx.roundRect(bgX, bgY, bgWidth, bgHeight, PING_BORDER_RADIUS);
+    ctx.roundRect(panelX, panelY, panelWidth, panelHeight, PING_BORDER_RADIUS);
     ctx.fill();
 
     // Draw ping text
     ctx.fillStyle = PING_TEXT_COLOR;
-    ctx.fillText(pingText, canvas.width - paddingX, canvas.height - paddingY - textHeight / 2);
+    ctx.textAlign = "center"; // Center horizontally within the panel
+    ctx.textBaseline = "middle"; // Center vertically within the panel
+    ctx.fillText(pingText, canvas.width / 2, panelY + panelHeight / 2);
 }
 
 
