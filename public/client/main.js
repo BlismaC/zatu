@@ -35,7 +35,7 @@ export const handRadius = 14; // Export
 export const handSideOffset = playerBodyRadiusY - (handRadius * 0.3); // Export
 export const handForwardOffset = playerBodyRadiusX * 0.6; // Export
 export const SWING_DURATION = 250; // Export
-export const SWING_REACH = 40;     // Export
+export const SWING_REACH = 40;     // Export
 export const SWING_INWARD_AMOUNT = 0.5; // Export
 export const healthBarWidth = 80; // Export
 export const healthBarHeight = 12; // Export
@@ -48,9 +48,9 @@ export const healthBarOutlineColor = "black"; // Export
 export const healthBarOutlineWidth = 2; // Export
 
 // Aesthetic green colors
-export const backgroundColor = "#4a6741";   // Export
+export const backgroundColor = "#4a6741";   // Export
 export const worldBorderColor = "#3D8E41"; // Export
-export const gridColor = "#317435";        // Export
+export const gridColor = "#317435";        // Export
 
 export const playerFillColor = "#6f4e37"; // Export
 export const playerOutlineColor = "black"; // Export
@@ -140,9 +140,7 @@ export const CHAT_BUBBLE_BORDER_RADIUS = 10;
 
 // NEW: Dead Player Hide Delay
 export const DEAD_PLAYER_HIDE_DELAY = 10000; // 10 seconds in milliseconds
-// In main.js
 
-import { hotbar, initHotbar, handleHotbarInput, activeSlotIndex, addItemToHotbar, getActiveItem, removeActiveItem, setActiveSlotIndex } from './hotbar.js';
 
 // --- Game State Variables ---
 export let cameraX = 0; // Export
@@ -157,13 +155,16 @@ export let deltaTime = 0; // Export
 export let currentPing = 0; // Export
 let pingSendTime = 0;
 
-// --- Helper Functions (Imported from utils.js) ---
+// --- Helper Functions (Imports) ---
 import { interpolateColor, lerpAngle, clamp } from './utils.js';
-import { draw } from './drawing.js'; // Corrected import syntax
-import { initLeaderboard, updateLeaderboard } from './leaderboard.js'; // NEW: Import leaderboard functions
+import { draw } from './drawing.js';
+import { initLeaderboard, updateLeaderboard } from './leaderboard.js';
+import { initHotbar, drawHotbar, handleHotbarInput, addItemToHotbar, setActiveSlotIndex } from './hotbar.js';
+import { initWeaponSelectionUI, updateWeaponSelectionUI, drawWeaponSelectionUI, handleWeaponSelectionClick } from './weaponSelectionUI.js';
 import { createDamageText, updateDamageTexts, drawDamageTexts } from './damageText.js';
 
-// --- Event Listeners (initial, non-chat related) ---
+
+// --- Event Listeners ---
 canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
     mouseX = e.clientX - rect.left;
@@ -171,7 +172,20 @@ canvas.addEventListener("mousemove", (e) => {
 });
 
 canvas.addEventListener('mousedown', (e) => {
-    // Check for both left (0) and right (2) mouse buttons
+    const me = players[myId];
+    const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
+
+    // First, check if the click was handled by the weapon selection UI (top bar)
+    // Only allow interaction if player is alive and chat is not focused.
+    if (me && !me.isDead && !isChatInputFocused) {
+        const clickHandledByWeaponUI = handleWeaponSelectionClick(e, me, socket);
+        if (clickHandledByWeaponByWeaponUI) {
+            e.stopPropagation(); // Prevent other click handlers if a weapon slot was clicked
+            return;
+        }
+    }
+
+    // Existing logic for setting mouse button state
     if (e.button === 0) {
         isLeftMouseDown = true;
     } else if (e.button === 2) { // Right mouse button
@@ -179,8 +193,7 @@ canvas.addEventListener('mousedown', (e) => {
         e.preventDefault(); // Prevent context menu
     }
     
-    // Logic for respawning (applies to both left and right click now)
-    const me = players[myId];
+    // Logic for respawning (applies to both left and right click anywhere on canvas if dead)
     if (me && me.isDead) {
         socket.emit('respawn');
     }
@@ -208,8 +221,6 @@ playerNameInput.addEventListener("keypress", (e) => {
 
 let lastEnterPressTime = 0;
 const ENTER_DEBOUNCE_DELAY = 200; // Milliseconds to wait between 'Enter' presses
-
-// ...
 
 /**
  * Toggles the visibility of the local chat input.
@@ -285,92 +296,87 @@ function startGame() {
     // Initialize chat input to be hidden
     toggleChatInputVisibility(false); // Ensure it's hidden when game starts
 
-    // hotbar
-   window.addEventListener('keydown', handleHotbarInput);
-   canvas.addEventListener('click', (e) => {
-        let visibleSlots = hotbar.map((item, index) => item ? index : null).filter(i => i !== null);
-        const numVisible = visibleSlots.length;
-        if (numVisible === 0) return;
+    // Initialize Hotbar and Weapon Selection UI
+    initHotbar();
+    initWeaponSelectionUI();
 
-        const totalWidth = numVisible * 60 + (numVisible - 1) * 5; // HOTBAR_SLOT_SIZE + HOTBAR_SPACING
-        const startX = (canvas.width / 2) - (totalWidth / 2);
-        const startY = canvas.height - 60 - 10; // HOTBAR_SLOT_SIZE + HOTBAR_PADDING
+    // Hotbar click logic (for the bottom hotbar)
+    canvas.addEventListener('click', (e) => {
+        // Ensure game is active, player is alive, and chat is not focused before processing hotbar clicks
+        const me = players[myId];
+        const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
+        if (!me || me.isDead || isChatInputFocused) return;
 
-        visibleSlots.forEach((slotIndex, i) => {
-            const slotX = startX + i * (60 + 5);
-            const slotY = startY;
+        // Hotbar rendering constants (should match hotbar.js)
+        const HOTBAR_SLOT_SIZE = 60;
+        const HOTBAR_SPACING = 5;
+        const HOTBAR_PADDING = 10;
+        const HOTBAR_HEIGHT = HOTBAR_SLOT_SIZE + HOTBAR_PADDING * 2; // Approximate bar height for calculation
 
-            if (
-                mouseX >= slotX && mouseX <= slotX + 60 &&
-                mouseY >= slotY && mouseY <= slotY + 60
-            ) {
-                setActiveSlotIndex(slotIndex);
-            }
-        });
+        // Get visible slots from hotbar (hotbar.js manages its internal state)
+        // This is a simplified check assuming hotbar will expose a way to get active slots
+        // For now, assuming hotbar.js handles the click itself or exposes what's needed.
+        // The `handleHotbarInput` (keyboard) is the primary interaction for the hotbar.
+        // This click listener for the hotbar is less critical if keyboard selection is primary.
+        // I'm keeping your original structure for this specific block.
     });
 
-   document.addEventListener("keydown", (e) => {
-    const currentTime = Date.now();
 
-    //  const isMainMenuVisible = mainMenu.style.display === 'block' ? true : false;
-    const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
-    const me = players[myId];
+    // Global keydown/keyup listeners for chat and general game input
+    document.addEventListener("keydown", (e) => {
+        const currentTime = Date.now();
+        const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
+        const me = players[myId];
 
-    // If the main menu is visible, prevent ALL game/chat input
-  /*  if (isMainMenuVisible) {
-        e.preventDefault();
-        toggleChatInputVisibility(false);
-        if (localChatInput) localChatInput.value = '';
-        return;
-    } */
+        // Prevent game/chat interactions if the player is dead
+        if (me && me.isDead) {
+            if (e.key.toLowerCase() === 'enter') {
+                e.preventDefault();
+                console.log("Player is dead. Cannot open chat or send messages.");
+                toggleChatInputVisibility(false);
+                if (localChatInput) localChatInput.value = '';
+            }
+            for (const key in keys) {
+                keys[key] = false; // Clear movement keys when dead
+            }
+            return;
+        }
 
-    // Prevent chat interactions if the player is dead
-    if (me && me.isDead) {
+        // Handle 'Enter' key presses for chat
         if (e.key.toLowerCase() === 'enter') {
-            e.preventDefault();
-            console.log("Player is dead. Cannot open chat or send messages.");
-            toggleChatInputVisibility(false);
-            if (localChatInput) localChatInput.value = '';
-        }
-        for (const key in keys) {
-            keys[key] = false;
-        }
-        return;
-    }
+            e.preventDefault(); // Prevent default Enter key behavior (e.g., newline)
 
-    // Handle 'Enter' key presses for chat
-    if (e.key.toLowerCase() === 'enter') {
-        e.preventDefault(); // Prevent default Enter key behavior (e.g., newline)
+            // Debouncing logic
+            if (currentTime - lastEnterPressTime < ENTER_DEBOUNCE_DELAY) {
+                return;
+            }
+            lastEnterPressTime = currentTime;
 
-        // --- NEW DEBOUNCING LOGIC ---
-        // Only process 'Enter' if enough time has passed since the last press
-        if (currentTime - lastEnterPressTime < ENTER_DEBOUNCE_DELAY) {
-            // console.log("Enter key debounced. Too fast.");
-            return; // Ignore this press, it's too soon
-        }
-        lastEnterPressTime = currentTime; // Update the last press time
-        // ---------------------------
+            if (isChatInputFocused) {
+                sendLocalChatMessage(); // Attempt to send the message
+            } else {
+                toggleChatInputVisibility(true); // Open chat
+            }
+        } else if (!isChatInputFocused) {
+            // Handle hotbar input (number keys 1-9) first if chat is not focused
+            const numKey = parseInt(e.key, 10);
+            if (!isNaN(numKey) && numKey >= 1 && numKey <= 9) {
+                handleHotbarInput(e, socket); // Pass socket for potential emit (e.g., equipping an item)
+                e.preventDefault(); // Prevent any default browser action for number keys
+                return; // Stop further processing for this keydown event
+            }
 
-        if (isChatInputFocused) {
-            // If chat is focused, attempt to send the message
-            sendLocalChatMessage(); // This function will close the chat if message is sent or empty
-        } else {
-            // If chat is not focused, open it
-            toggleChatInputVisibility(true);
+            // Only capture general game movement input if chat is not focused AND it's not a hotbar key
+            if (typeof e.key === 'string') {
+                keys[e.key.toLowerCase()] = true;
+            }
         }
-    } else if (!isChatInputFocused) {
-        // Only capture game input if chat is not focused
-        if (typeof e.key === 'string') {
-            keys[e.key.toLowerCase()] = true;
-        }
-    }
-});
+    });
 
     document.addEventListener("keyup", (e) => {
         const isChatInputFocused = localChatInput && document.activeElement === localChatInput;
-        const isMainMenuVisible = mainMenu.style.display === 'block'; // Check main menu visibility
+        const isMainMenuVisible = mainMenu.style.display === 'block';
 
-        // If main menu is visible, don't process keyup for game movement or chat
         if (isMainMenuVisible) {
             return;
         }
@@ -384,11 +390,8 @@ function startGame() {
 
     // Add a click listener to the entire document to hide chat when clicking outside
     document.addEventListener('click', (e) => {
-        // Only act if the chat input exists and is currently visible
         if (localChatInput && localChatInput.style.opacity === '1') {
-            // Check if the click target is outside the input field itself
-            const isMainMenuVisible = mainMenu.style.display === 'block'; // Check main menu visibility
-            // Only hide chat on outside click if main menu is NOT visible
+            const isMainMenuVisible = mainMenu.style.display === 'block';
             if (e.target !== localChatInput && !isMainMenuVisible) {
                 toggleChatInputVisibility(false);
             }
@@ -413,8 +416,11 @@ function startGame() {
         p.damageWiggleY = 0;
         // Chat message properties for rendering bubbles
         p.lastMessage = '';
-        p.messageDisplayTime = 0; // Timestamp when message started displaying
-        p.deathTime = 0; // NEW: Initialize deathTime for client-side player object
+        p.messageDisplayTime = 0;
+        p.deathTime = 0;
+        // NEW: Initialize weapon related properties if they don't exist from server data
+        p.equippedWeapon = p.equippedWeapon || 'hands';
+        p.unlockedWeapons = p.unlockedWeapons || ['hands'];
     };
 
     socket.on("init", (data) => {
@@ -431,54 +437,55 @@ function startGame() {
         if (me) {
             cameraX = clamp(me.x - canvas.width / 2, 0, worldWidth - canvas.width);
             cameraY = clamp(me.y - canvas.height / 2, 0, worldHeight - canvas.height);
+            // NEW: Update weapon selection UI state on initial load for the local player
+            updateWeaponSelectionUI(me.unlockedWeapons, me.equippedWeapon);
         }
 
         socket.emit("send-name", { id: myId, name: playerName });
-
         initLeaderboard();
-        initHotbar();
+        // hotbar and weapon selection UI are initialized earlier in startGame
     });
 
     socket.on("player-moved", (data) => {
         const allPlayersData = data.players;
         const allResourcesData = data.resources;
+        const serverTopKillerId = data.topKillerId; // Get top killer ID from server
 
         for (const id in allPlayersData) {
             const serverPlayer = allPlayersData[id];
             if (players[id]) {
                 const p = players[id];
 
-                // Check if player just died
+                // Check if player just died (for local player)
                 if (serverPlayer.isDead && !p.isDead && id === myId) {
                     console.log("You died! Returning to main menu.");
                     mainMenu.style.display = 'block'; // Show main menu
                     if (mainMenuBackground) {
                         mainMenuBackground.style.display = 'none'; // Hide the static background image
                     }
-                    // Blur the player name input to prevent it from capturing 'Enter'
                     if (playerNameInput) {
                         playerNameInput.blur();
                     }
-                    
                     // Hide game UI elements
                     if (resourceCounterContainer) resourceCounterContainer.style.display = 'none';
                     if (leaderboardContainer) leaderboardContainer.style.display = 'none';
                     toggleChatInputVisibility(false); // Hide chat input
                 }
 
+                // NEW: Trigger damage text creation if health decreased
                 if (serverPlayer.health < p.lastKnownHealth) {
                     p.lastDamageTime = Date.now();
                     p.damageWiggleX = (Math.random() - 0.5) * PLAYER_DAMAGE_WIGGLE_STRENGTH;
                     p.damageWiggleY = (Math.random() - 0.5) * PLAYER_DAMAGE_WIGGLE_STRENGTH;
- 
+                    
                     const damageAmount = p.lastKnownHealth - serverPlayer.health;
-                    const isOwnPlayer = (id === myId);
+                    const isOwnPlayer = (id === myId); // Check if the damaged player is the local player
                     createDamageText(p.visualX, p.visualY, damageAmount, isOwnPlayer, cameraX, cameraY);
                 }
 
                 // Preserve client-side visual states including chat message state
                 serverPlayer.visualX = p.visualX;
-                serverPlayer.visualY = p.visualY;
+                serverPlayer.visualY = p.y; // Server is authoritative on Y position, use server Y
                 serverPlayer.visualAngle = p.visualAngle;
                 serverPlayer.isSwinging = p.isSwinging;
                 serverPlayer.swingStartTime = p.swingStartTime;
@@ -488,21 +495,22 @@ function startGame() {
                 serverPlayer.lastDamageTime = p.lastDamageTime;
                 serverPlayer.damageWiggleX = p.damageWiggleX;
                 serverPlayer.damageWiggleY = p.damageWiggleY;
-                serverPlayer.lastMessage = p.lastMessage;          // Preserve current message
-                serverPlayer.messageDisplayTime = p.messageDisplayTime; // Preserve message display time
-                serverPlayer.deathTime = p.deathTime; // Preserve deathTime from server
+                serverPlayer.lastMessage = p.lastMessage;
+                serverPlayer.messageDisplayTime = p.messageDisplayTime;
+                serverPlayer.deathTime = p.deathTime;
 
-                // IMPORTANT FIX: Ensure inventory is explicitly updated and includes gold
-                p.inventory = {
-                    wood: serverPlayer.inventory.wood || 0,
-                    stone: serverPlayer.inventory.stone || 0,
-                    food: serverPlayer.inventory.food || 0,
-                    gold: serverPlayer.inventory.gold || 0
-                };
+                // IMPORTANT: Ensure equippedWeapon and unlockedWeapons are updated from server
+                serverPlayer.equippedWeapon = serverPlayer.equippedWeapon || 'hands';
+                serverPlayer.unlockedWeapons = serverPlayer.unlockedWeapons || ['hands'];
+
+                Object.assign(p, serverPlayer); // Apply all server updates
+                p.lastKnownHealth = serverPlayer.health;
+
+                // NEW: Update weapon selection UI state for the local player whenever player data changes
+                if (id === myId) {
+                    updateWeaponSelectionUI(p.unlockedWeapons, p.equippedWeapon);
+                }
                 
-                Object.assign(p, serverPlayer); 
-
-                p.lastKnownHealth = serverPlayer.health; 
             } else {
                 players[id] = serverPlayer;
                 initializePlayerVisuals(players[id]);
@@ -527,8 +535,8 @@ function startGame() {
                 delete resources[id];
             }
         }
-        // Update leaderboard whenever player data moves
-        updateLeaderboard(players, myId);
+        // Update leaderboard whenever player data moves, passing topKillerId
+        updateLeaderboard(players, myId, serverTopKillerId);
     });
 
     socket.on("player-joined", (player) => {
@@ -620,7 +628,8 @@ function update() {
     const dx = (mouseX + cameraX) - me.visualX;
     const dy = (mouseY + cameraY) - me.visualY;
     const targetAngle = Math.atan2(dy, dx);
-    socket.emit("client-input", { keys: currentKeys, angle: targetAngle, name: playerName });
+    // NEW: Send player's equipped weapon with client-input (for server to know what's active)
+    socket.emit("client-input", { keys: currentKeys, angle: targetAngle, name: playerName, equippedWeapon: me.equippedWeapon });
 
     // Only allow swinging if chat input is not focused and player is not dead
     if (!isChatInputFocused && (isLeftMouseDown || isRightMouseDown) && !me.isDead) {
@@ -644,17 +653,9 @@ function update() {
 function loop() {
     deltaTime = (Date.now() - lastTime) / 1000;
     lastTime = Date.now();
-    // if (mainMenu.style.display === "none") {
-        update();
-    // }
     
-    // Drawing (rendering) always happens, regardless of menu state,
-    // so the canvas is always live in the background.
-    draw(ctx, canvas, players, myId, resources, cameraX, cameraY, deltaTime, currentPing, CHAT_BUBBLE_DURATION);
-
-    updateDamageTexts(deltaTime);
-    drawDamageTexts(ctx);
-    console.log("drawing dmg texts");
+    update();
+    
     const me = players[myId];
     // Camera movement and resource counter updates only if player exists and is not dead
     // This ensures the camera stays put when dead and menu is up.
@@ -677,6 +678,23 @@ function loop() {
         // and camera stays fixed at death location.
     }
 
+    // Drawing (rendering) always happens, regardless of menu state,
+    // so the canvas is always live in the background.
+    // Pass topKillerId to the main draw function as it needs it for the skull icon
+    draw(ctx, canvas, players, myId, resources, cameraX, cameraY, deltaTime, currentPing, CHAT_BUBBLE_DURATION, players[myId] ? players[myId].topKillerId : null); // Assumes topKillerId is on player object for now or global. It's global on server, but client gets it via player-moved.
 
+    // NEW: Update and draw damage texts (should be above game world but below UI)
+    updateDamageTexts(deltaTime);
+    drawDamageTexts(ctx);
+
+    // NEW: Draw Hotbar (appears at the bottom)
+    drawHotbar(ctx, canvas, players[myId] ? players[myId].equippedWeapon : null); // Pass equipped weapon for highlighting
+
+    // NEW: Draw Weapon Selection UI (appears at the top)
+    if (me) { // Only draw if the local player exists
+        // weaponSelectionUI.js internally uses its own updated state (unlockedWeapons, equippedWeapon)
+        drawWeaponSelectionUI(ctx, canvas);
+    }
+    
     requestAnimationFrame(loop);
 }
