@@ -2,13 +2,13 @@
 
 // --- Hotbar State ---
 const NUM_SLOTS = 9; // Fixed number of hotbar slots
-export let hotbar = Array(NUM_SLOTS).fill(null); // Initialize all slots as empty
-export let activeSlotIndex = 0; // Declared with let, can be modified within this module
+let hotbar = Array(NUM_SLOTS).fill(null); // Initialize all slots as empty
+let activeSlotIndex = 0; // Declared with let, can be modified within this module
 
 // --- Hotbar Visual Constants (Client-Side) ---
-export const HOTBAR_SLOT_SIZE = 60; // Exported for main.js click logic
-export const HOTBAR_PADDING = 10; // Exported for main.js click logic
-export const HOTBAR_SPACING = 5; // Exported for main.js click logic
+const HOTBAR_SLOT_SIZE = 60;
+const HOTBAR_PADDING = 10;
+const HOTBAR_SPACING = 5;
 const HOTBAR_BACKGROUND_COLOR = 'rgba(0, 0, 0, 0.4)';
 const HOTBAR_BORDER_COLOR = 'rgba(255, 255, 255, 0.2)';
 const HOTBAR_ACTIVE_BORDER_COLOR = '#fff700';
@@ -21,29 +21,9 @@ const HOTBAR_ITEM_FONT_SIZE = 12;
 
 const PLACEHOLDER_ICONS = {
     'axe': '⛏️',
-    'wood_wall': '�',
+    'wood_wall': '🧱',
     'food_ration': '🍖',
-    'sword': '⚔️',
-    'hands': '✊', // Added placeholder for hands
-    'bat': '⚾',
-    'shield': '🛡️',
-    'long sword': '🗡️',
-    'gold': '💰', // Added placeholder for gold
-    // Add more as needed for your weapons
-    'spear': '🔱',
-    'dagger': '🔪',
-    'battle axe': '🪓',
-    'trident': '🔱',
-    'javelin': '🪡', // Close enough emoji
-    'dual daggers': '🔪🔪',
-    'throwing knife': '🗡️',
-    'hammer': '🔨',
-    'gloves': '🥊',
-    'boomerang': '🪃',
-    'spiked shield': '🛡️',
-    'crossknife': '⚔️', // Re-using sword or throwing knife
-    'war hammer': '🔨',
-    'brass knuckles': '👊',
+    'sword': '⚔️'
 };
 
 // Load 'Press Start 2P' font
@@ -52,7 +32,6 @@ fontLink.href = 'https://fonts.googleapis.com/css2?family=Press+Start+2P&display
 fontLink.rel = 'stylesheet';
 document.head.appendChild(fontLink);
 
-// Apply font globally to canvas text where possible
 const applyFont = () => {
     const style = document.createElement('style');
     style.textContent = `
@@ -68,12 +47,10 @@ applyFont();
  * Initializes the hotbar with some default items.
  */
 export function initHotbar() {
-    // You might want to remove these dummy items once your game dynamically adds them.
-    addItemToHotbar({ id: 'fists', type: 'weapon', iconSrc: 'hands', name: 'hands', quantity: 1 });
-    addItemToHotbar({ id: 'axe1', type: 'weapon', iconSrc: 'axe', name: 'axe', quantity: 1 });
-    addItemToHotbar({ id: 'wall1', type: 'building', iconSrc: 'wood_wall', name: 'Wood Wall', quantity: 5 });
-    addItemToHotbar({ id: 'food1', type: 'consumable', iconSrc: 'food_ration', name: 'Ration', quantity: 10 });
-    addItemToHotbar({ id: 'sword1', type: 'weapon', iconSrc: 'sword', name: 'short sword', quantity: 1 });
+    addItemToHotbar({ id: 'axe1', type: 'axe', iconSrc: 'axe', name: 'Stone Axe', quantity: 1 });
+    addItemToHotbar({ id: 'wall1', type: 'wood_wall', iconSrc: 'wood_wall', name: 'Wood Wall', quantity: 5 });
+    addItemToHotbar({ id: 'food1', type: 'food_ration', iconSrc: 'food_ration', name: 'Ration', quantity: 10 });
+    addItemToHotbar({ id: 'sword1', type: 'sword', iconSrc: 'sword', name: 'Iron Sword', quantity: 1 });
     console.log("Hotbar initialized:", hotbar);
 }
 
@@ -83,20 +60,19 @@ export function initHotbar() {
  * @param {HTMLCanvasElement} canvas - The HTML canvas element.
  */
 export function drawHotbar(ctx, canvas) {
-    // Calculate total width and starting position to center the hotbar for all NUM_SLOTS
-    const totalWidth = NUM_SLOTS * HOTBAR_SLOT_SIZE + (NUM_SLOTS - 1) * HOTBAR_SPACING;
+    // Filter out null slots to only draw visible items
+    const visibleSlots = hotbar.map((item, index) => item ? index : null).filter(i => i !== null);
+    const numVisible = visibleSlots.length;
+    if (numVisible === 0) return;
+
+    // Calculate total width and starting position to center the hotbar
+    const totalWidth = numVisible * HOTBAR_SLOT_SIZE + (numVisible - 1) * HOTBAR_SPACING;
     const startX = (canvas.width / 2) - (totalWidth / 2);
     const startY = canvas.height - HOTBAR_SLOT_SIZE - HOTBAR_PADDING;
 
-    // Draw background for the entire bar
-    ctx.fillStyle = HOTBAR_BACKGROUND_COLOR;
-    ctx.beginPath();
-    ctx.roundRect(startX - HOTBAR_PADDING, startY - HOTBAR_PADDING, totalWidth + HOTBAR_PADDING * 2, HOTBAR_SLOT_SIZE + HOTBAR_PADDING * 2, 10);
-    ctx.fill();
-
-    // Iterate over all slots (NUM_SLOTS) and draw each one
-    for (let i = 0; i < NUM_SLOTS; i++) {
-        const slotX = startX + (i * (HOTBAR_SLOT_SIZE + HOTBAR_SPACING));
+    // Iterate over visible slots and draw each one
+    visibleSlots.forEach((i, visibleIndex) => {
+        const slotX = startX + (visibleIndex * (HOTBAR_SLOT_SIZE + HOTBAR_SPACING));
         const slotY = startY;
         const item = hotbar[i];
         const isCurrentActive = (i === activeSlotIndex);
@@ -115,22 +91,20 @@ export function drawHotbar(ctx, canvas) {
         ctx.fill();
         ctx.stroke();
 
-        if (item) { // Only draw item icon and quantity if slot is not empty
-            // Draw item icon (emoji placeholder)
-            ctx.font = `${HOTBAR_SLOT_SIZE * 0.5}px 'Press Start 2P'`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = 'white';
-            ctx.fillText(PLACEHOLDER_ICONS[item.iconSrc] || '❓', slotX + HOTBAR_SLOT_SIZE / 2, slotY + HOTBAR_SLOT_SIZE / 2);
+        // Draw item icon (emoji placeholder)
+        ctx.font = `${HOTBAR_SLOT_SIZE * 0.5}px 'Press Start 2P'`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'white';
+        ctx.fillText(PLACEHOLDER_ICONS[item.iconSrc] || '❓', slotX + HOTBAR_SLOT_SIZE / 2, slotY + HOTBAR_SLOT_SIZE / 2);
 
-            // Draw item quantity if greater than 1
-            if (item.quantity > 1) {
-                ctx.font = `${HOTBAR_ITEM_FONT_SIZE}px 'Press Start 2P'`;
-                ctx.textAlign = 'right';
-                ctx.textBaseline = 'bottom';
-                ctx.fillStyle = HOTBAR_ITEM_TEXT_COLOR;
-                ctx.fillText(item.quantity, slotX + HOTBAR_SLOT_SIZE - 4, slotY + HOTBAR_SLOT_SIZE - 4);
-            }
+        // Draw item quantity if greater than 1
+        if (item.quantity > 1) {
+            ctx.font = `${HOTBAR_ITEM_FONT_SIZE}px 'Press Start 2P'`;
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillStyle = HOTBAR_ITEM_TEXT_COLOR;
+            ctx.fillText(item.quantity, slotX + HOTBAR_SLOT_SIZE - 4, slotY + HOTBAR_SLOT_SIZE - 4);
         }
 
         // Draw slot number (1-9)
@@ -141,32 +115,21 @@ export function drawHotbar(ctx, canvas) {
         ctx.fillText(`${i + 1}`, slotX + 4, slotY + 4);
 
         ctx.restore(); // Restore the previous drawing state
-    }
+    });
 }
 
 /**
  * Handles keyboard input for hotbar selection.
  * @param {KeyboardEvent} e - The keyboard event.
- * @param {SocketIO.Socket} socket - The Socket.IO client instance.
  */
-export function handleHotbarInput(e, socket) { // Added socket parameter
+export function handleHotbarInput(e) {
     // Prevent hotbar input if an input field is active
     if (document.activeElement.tagName === 'INPUT') return;
     const key = e.key;
     const numKey = parseInt(key, 10);
     // If a number key from 1 to NUM_SLOTS is pressed, set active slot
-    if (!isNaN(numKey) && numKey >= 1 && numKey <= NUM_SLOTS) {
-        const index = numKey - 1; // Convert 1-indexed key to 0-indexed array index
-        
-        // Only set active if the slot is not empty
-        if (hotbar[index] !== null) {
-            setActiveSlotIndex(index);
-            const equippedItem = hotbar[index];
-            if (equippedItem && equippedItem.name && socket) { // Ensure socket exists before emitting
-                console.log(`Equipping ${equippedItem.name} via hotbar key ${numKey}`);
-                socket.emit('equip-weapon', { weaponName: equippedItem.name });
-            }
-        }
+    if (numKey >= 1 && numKey <= NUM_SLOTS) {
+        setActiveSlotIndex(numKey - 1); // Use the new setter function
         e.preventDefault(); // Prevent default browser behavior (e.g., scrolling)
     }
 }
@@ -183,9 +146,8 @@ export function addItemToHotbar(item) {
     // Try to stack with an existing item of the same type
     for (let i = 0; i < NUM_SLOTS; i++) {
         const existingItem = hotbar[i];
-        // Stack only if it's the same type and has a quantity property
-        if (existingItem && existingItem.type === item.type && typeof existingItem.quantity === 'number' && item.stackable !== false) {
-            existingItem.quantity = (existingItem.quantity || 0) + (item.quantity || 1); // Increment quantity
+        if (existingItem && existingItem.type === item.type && typeof existingItem.quantity === 'number') {
+            existingItem.quantity += item.quantity;
             return true;
         }
     }
@@ -228,7 +190,7 @@ export function removeActiveItem(quantityToRemove = 1) {
         return false; // Not enough quantity to remove
     }
 
-    // If item has no quantity property (and not stackable), just remove it
+    // If item has no quantity property, just remove it
     hotbar[activeSlotIndex] = null;
     return true;
 }
@@ -265,3 +227,6 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
         return this;
     };
 }
+
+// Export hotbar and the new setter function
+export { hotbar, activeSlotIndex }; // Removed activeSlotIndex direct export
