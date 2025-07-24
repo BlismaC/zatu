@@ -179,7 +179,7 @@ canvas.addEventListener('mousedown', (e) => {
     // Only allow interaction if player is alive and chat is not focused.
     if (me && !me.isDead && !isChatInputFocused) {
         const clickHandledByWeaponUI = handleWeaponSelectionClick(e, me, socket);
-        if (clickHandledByWeaponByWeaponUI) {
+        if (clickHandledByWeaponUI) {
             e.stopPropagation(); // Prevent other click handlers if a weapon slot was clicked
             return;
         }
