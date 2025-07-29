@@ -4,7 +4,7 @@ const fastifyStatic = require("@fastify/static");
 
 // --- Import Weapon Data ---
 // Ensure weapons.js is accessible in the public directory or adjust path
-const { getWeaponProperties } = require('./public/weapons.js'); // Assuming weapons.js is in public for Node.js modules
+const { getWeaponProperties } = require('./public/client/weapons.js'); // Assuming weapons.js is in public for Node.js modules
 
 // --- Static Files Setup ---
 fastify.register(fastifyStatic, {
