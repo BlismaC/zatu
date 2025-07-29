@@ -92,7 +92,7 @@ export function getResSprite(obj, resourceDrawSize, resourceOutlineColor, resour
 
         const numStems = 3 + UTILS.randInt(0, 2); // 3 to 5 stems
         const stemGap = wheatBaseWidth / (numStems + 1);
-
+        console.log('wheat bush');
         for (let i = 0; i < numStems; i++) {
             const stemX = (i - (numStems - 1) / 2) * stemGap;
             const stemHeight = wheatBaseHeight * UTILS.randFloat(0.9, 1.1);
