@@ -80,7 +80,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
         }
     };
 
-    const RESOURCE_COUNT_TOTAL = 30; // Fixed total number of resources on the map
+    const RESOURCE_COUNT_TOTAL = Math.random() * 100 + 30; // Fixed total number of resources on the map
 
     // Define weights for resource spawning (more chances for common resources)
     const RESOURCE_SPAWN_WEIGHTS = [
@@ -341,7 +341,6 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
         socket.on('local-chat-message', (data) => {
             const sender = players[socket.id];
             if (sender && data.message && typeof data.message === 'string' && data.message.trim().length > 0) {
-                // Sanitize message to prevent XSS or very long messages
                 const cleanMessage = data.message.trim().substring(0, 100); // Max 100 chars
 
                 // Iterate through all players to find nearby ones
