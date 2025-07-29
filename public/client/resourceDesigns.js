@@ -20,8 +20,11 @@ export function getResSprite(obj, resourceDrawSize, resourceOutlineColor, resour
     // --- IMPORTANT FIX: Use imported RESOURCE_TYPES constants for matching ---
     switch (obj.type) {
         case RESOURCE_TYPES.WOOD: moomooType = 0; break;
-        case RESOURCE_TYPES.FOOD: moomooType = 1; break; // This is now for 'food' like wheat
+        case RESOURCE_TYPES.FOOD: moomooType = 1; break;
         case RESOURCE_TYPES.STONE: moomooType = 2; break;
+        // For gold, use an existing design or create a new one.
+        // Assuming moomooType 3 is typically 'gold' or 'rare stone' in similar games,
+        // we'll map it there for consistency with the provided 'moomooType == 2 || moomooType == 3' logic.
         case RESOURCE_TYPES.GOLD: moomooType = 3; break;
         default: moomooType = 0; // Fallback
     }
@@ -35,16 +38,23 @@ export function getResSprite(obj, resourceDrawSize, resourceOutlineColor, resour
     let tmpSprite = gameObjectSprites[tmpIndex];
 
     if (!tmpSprite) {
+        // --- Debugging logs for sprite creation (NEW) ---
+        console.log(`Creating sprite for type: ${obj.type} (moomooType: ${moomooType})`);
+        console.log(`Passed dimensions: tmpScale=${tmpScale}, outlineWidth=${resourceOutlineWidth}`);
+
         const tmpCanvas = document.createElement('canvas');
         // Canvas size needs to be large enough for the largest resource (tree)
         // Ensure sufficient padding for drawing and outline.
         tmpCanvas.width = tmpCanvas.height = tmpScale * 3.5 + resourceOutlineWidth * 4; // Very generous buffer
         
+        // --- Debugging logs for canvas dimensions (NEW) ---
+        console.log(`Canvas dimensions: width=${tmpCanvas.width}, height=${tmpCanvas.height}`);
+
         const tmpContext = tmpCanvas.getContext('2d');
         // Translate to the center of the new, larger canvas
         tmpContext.translate(tmpCanvas.width / 2, tmpCanvas.height / 2);
         tmpContext.rotate(UTILS.randFloat(0, Math.PI)); // Random rotation for some objects
-        // Set default stroke and linewidth, but these will be overridden for specific colors
+        // Set default stroke and linewidth, but these will be overridden for the bush specific colors
         tmpContext.strokeStyle = resourceOutlineColor;
         tmpContext.lineWidth = resourceOutlineWidth;
 
@@ -70,54 +80,54 @@ export function getResSprite(obj, resourceDrawSize, resourceOutlineColor, resour
                 tmpContext.restore();
             }
         } else if (moomooType == 1) { // Food (Wheat Bush) - NEW DESIGN
-            const wheatBaseWidth = RESOURCE_PROPERTIES[RESOURCE_TYPES.FOOD].collisionRadius * 0.8; // e.g., ~56px
-            const wheatBaseHeight = RESOURCE_PROPERTIES[RESOURCE_TYPES.FOOD].collisionRadius * 1.5; // e.g., ~105px
-            const stemColor = '#6B8E23'; // Olive green for stems
-            const headColor = '#DAA520'; // Goldenrod for wheat heads
-            const innerHeadColor = '#FFD700'; // Gold for highlights on heads
-            const stemOutlineColor = '#4B5320'; // Darker green for stem outlines
+        const wheatBaseWidth = RESOURCE_PROPERTIES[RESOURCE_TYPES.FOOD].collisionRadius * 0.8; // e.g., ~56px
+        const wheatBaseHeight = RESOURCE_PROPERTIES[RESOURCE_TYPES.FOOD].collisionRadius * 1.5; // e.g., ~105px
+        const stemColor = '#6B8E23'; // Olive green for stems
+        const headColor = '#DAA520'; // Goldenrod for wheat heads
+        const innerHeadColor = '#FFD700'; // Gold for highlights on heads
+        const stemOutlineColor = '#4B5320'; // Darker green for stem outlines
 
-            tmpContext.save();
-            tmpContext.rotate(UTILS.randFloat(-0.05, 0.05)); // Slight random rotation for natural look
+        tmpContext.save();
+        tmpContext.rotate(UTILS.randFloat(-0.05, 0.05)); // Slight random rotation for natural look
 
-            const numStems = 3 + UTILS.randInt(0, 2); // 3 to 5 stems
-            const stemGap = wheatBaseWidth / (numStems + 1);
+        const numStems = 3 + UTILS.randInt(0, 2); // 3 to 5 stems
+        const stemGap = wheatBaseWidth / (numStems + 1);
 
-            for (let i = 0; i < numStems; i++) {
-                const stemX = (i - (numStems - 1) / 2) * stemGap;
-                const stemHeight = wheatBaseHeight * UTILS.randFloat(0.9, 1.1);
-                const stemWidth = resourceOutlineWidth * 2; // Thin stems
+        for (let i = 0; i < numStems; i++) {
+            const stemX = (i - (numStems - 1) / 2) * stemGap;
+            const stemHeight = wheatBaseHeight * UTILS.randFloat(0.9, 1.1);
+            const stemWidth = resourceOutlineWidth * 2; // Thin stems
 
-                // Draw stem
-                tmpContext.fillStyle = stemColor;
-                tmpContext.strokeStyle = stemOutlineColor;
-                tmpContext.lineWidth = resourceOutlineWidth;
-                tmpContext.beginPath();
-                tmpContext.roundRect(stemX - stemWidth / 2, -stemHeight / 2, stemWidth, stemHeight, stemWidth / 2);
-                tmpContext.fill();
-                tmpContext.stroke();
+            // Draw stem
+            tmpContext.fillStyle = stemColor;
+            tmpContext.strokeStyle = stemOutlineColor;
+            tmpContext.lineWidth = resourceOutlineWidth;
+            tmpContext.beginPath();
+            tmpContext.roundRect(stemX - stemWidth / 2, -stemHeight / 2, stemWidth, stemHeight, stemWidth / 2);
+            tmpContext.fill();
+            tmpContext.stroke();
 
-                // Draw wheat head (a small blob/star at the top of the stem)
-                const headRadius = stemWidth * 4; // Size of the wheat head
-                tmpContext.fillStyle = headColor;
-                tmpContext.strokeStyle = resourceOutlineColor;
-                tmpContext.lineWidth = resourceOutlineWidth;
-                tmpContext.beginPath();
-                // Position head slightly above the stem
-                tmpContext.ellipse(stemX, -stemHeight / 2 - headRadius * 0.4, headRadius, headRadius * 1.5, UTILS.randFloat(-0.2, 0.2), 0, Math.PI * 2);
-                tmpContext.fill();
-                tmpContext.stroke();
+            // Draw wheat head (a small blob/star at the top of the stem)
+            const headRadius = stemWidth * 4; // Size of the wheat head
+            tmpContext.fillStyle = headColor;
+            tmpContext.strokeStyle = resourceOutlineColor;
+            tmpContext.lineWidth = resourceOutlineWidth;
+            tmpContext.beginPath();
+            // Position head slightly above the stem
+            tmpContext.ellipse(stemX, -stemHeight / 2 - headRadius * 0.4, headRadius, headRadius * 1.5, UTILS.randFloat(-0.2, 0.2), 0, Math.PI * 2);
+            tmpContext.fill();
+            tmpContext.stroke();
 
-                // Add small inner detail for more texture
-                tmpContext.fillStyle = innerHeadColor;
-                tmpContext.beginPath();
-                tmpContext.ellipse(stemX, -stemHeight / 2 - headRadius * 0.4, headRadius * 0.6, headRadius * 1.2, UTILS.randFloat(-0.2, 0.2), 0, Math.PI * 2);
-                tmpContext.fill();
-            }
+            // Add small inner detail for more texture
+            tmpContext.fillStyle = innerHeadColor;
+            tmpContext.beginPath();
+            tmpContext.ellipse(stemX, -stemHeight / 2 - headRadius * 0.4, headRadius * 0.6, headRadius * 1.2, UTILS.randFloat(-0.2, 0.2), 0, Math.PI * 2);
+            tmpContext.fill();
+        }
 
-            tmpContext.restore(); // Restore context after rotation and alpha changes
+        tmpContext.restore(); // Restore context after rotation and alpha changes
 
-        } else if (moomooType == 2) { // Stone - UNCHANGED
+        } else if (moomooType == 2) { // Stone - UNCHANGED (moomooType 2)
             tmpContext.fillStyle = (biomeID == 2 ? '#938d77' : '#939393'); // Original stone color
             renderStar(tmpContext, 3, tmpScale, tmpScale);
             tmpContext.fill();
@@ -125,12 +135,24 @@ export function getResSprite(obj, resourceDrawSize, resourceOutlineColor, resour
             tmpContext.fillStyle = (biomeID == 2 ? '#b2ab90' : '#bcbcbc'); // Lighter stone accent
             renderStar(tmpContext, 3, tmpScale * 0.55, tmpScale * 0.65);
             tmpContext.fill();
-        } else if (moomooType == 3) { // Gold - UNCHANGED
-            tmpContext.fillStyle = '#FFD700'; // Original gold color
+        } else if (moomooType == 3) { // Gold - NEW (moomooType 3)
+            // Gold nugget / jagged rock appearance
+            //tmpContext.fillStyle = '#FFD700'; // Gold color
+            //tmpContext.strokeStyle = '#B8860B'; // Darker gold outline
+            //tmpContext.lineWidth = resourceOutlineWidth;
+
+
+            //tmpContext.fillStyle = '#DAA520'; // A slightly darker gold for inner details
+
+
+            //tmpContext.fillStyle = '#FFF8DC'; // A very light gold for highlights
+
+          
+           tmpContext.fillStyle = '#FFD700'; // Original stone color
             renderStar(tmpContext, 3, tmpScale, tmpScale);
             tmpContext.fill();
             tmpContext.stroke();
-            tmpContext.fillStyle = '#FFF8DC'; // Lighter gold accent
+            tmpContext.fillStyle = '#FFF8DC'; // Lighter stone accent
             renderStar(tmpContext, 3, tmpScale * 0.55, tmpScale * 0.65);
             tmpContext.fill();
         }
@@ -138,24 +160,4 @@ export function getResSprite(obj, resourceDrawSize, resourceOutlineColor, resour
         gameObjectSprites[tmpIndex] = tmpSprite;
     }
     return tmpSprite;
-}
-
-// Add roundRect for canvas context if not available (polyfill)
-if (!CanvasRenderingContext2D.prototype.roundRect) {
-    CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radius) {
-        if (typeof radius === 'number') radius = { tl: radius, tr: radius, br: radius, bl: radius };
-        else radius = Object.assign({ tl: 0, tr: 0, br: 0, bl: 0 }, radius);
-        this.beginPath();
-        this.moveTo(x + radius.tl, y);
-        this.lineTo(x + width - radius.tr, y);
-        this.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
-        this.lineTo(x + width, y + height - radius.br);
-        this.quadraticCurveTo(x + width, y + height, x + width - radius.br, y + height);
-        this.lineTo(x + radius.bl, y + height);
-        this.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
-        this.lineTo(x, y + radius.tl);
-        this.quadraticCurveTo(x, y, x + radius.tl, y);
-        this.closePath();
-        return this;
-    };
 }
