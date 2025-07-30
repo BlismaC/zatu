@@ -454,7 +454,7 @@ function drawGrid(ctx, canvas, cameraX, cameraY, worldWidth, worldHeight, gridSi
 
 // Ping Counter drawing (NOW TOP CENTER)
 function drawPingCounter(ctx, canvas, currentPing, PING_FONT_SIZE, PING_TEXT_COLOR, PING_BACKGROUND_COLOR, PING_BORDER_RADIUS, PING_PADDING_X, PING_PADDING_Y) {
-    const pingText = `Ping: ${currentPing}ms`;
+    const pingText = `${currentPing}ms`;
     ctx.font = `bold ${PING_FONT_SIZE}px Arial`;
     
     // Measure text to create a background rectangle
