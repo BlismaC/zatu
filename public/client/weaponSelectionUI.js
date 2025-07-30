@@ -52,7 +52,7 @@ import {
 } from './main.js';
 
 // Import weapon properties to get weapon details (currently not used in this UI, but good for future expansion)
-import { getWeaponProperties } from './weapons.js';
+const { getWeaponProperties } = require('./weapons.js');
 
 // --- UI Constants ---
 const SLOT_SIZE = 60; // Size of each weapon slot (width and height)
