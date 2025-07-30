@@ -50,7 +50,7 @@ export const healthBarOutlineWidth = 2; // Export
 // Aesthetic green colors
 export const backgroundColor = "#4a6741";   // Export
 export const worldBorderColor = "#3D8E41"; // Export
-export const gridColor = "#317435";        // Export
+export const gridColor = "#3c442f";        // Export
 
 export const playerFillColor = "#6f4e37"; // Export
 export const playerOutlineColor = "black"; // Export
