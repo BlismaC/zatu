@@ -2,6 +2,9 @@ const path = require("path");
 const fastify = require("fastify")({ logger: false });
 const fastifyStatic = require("@fastify/static");
 
+// --- Import Weapon Data ---
+const { WEAPON_DATA, getWeaponProperties, WEAPON_NAMES } = require('./weapons');
+
 // --- Static Files Setup ---
 fastify.register(fastifyStatic, {
     root: path.join(__dirname, "public"), // Assuming 'public' is where index.html and client.js are
@@ -9,7 +12,7 @@ fastify.register(fastifyStatic, {
 });
 
 // --- Server Startup ---
-fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, address) => { // Added default port 3000
+fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, address) => {
     if (err) {
         console.error(err);
         process.exit(1);
@@ -31,12 +34,15 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
     const PLAYER_COLLISION_RADIUS = 30; // Player hitbox size
     const MAX_PLAYER_DIMENSION = PLAYER_COLLISION_RADIUS;
     const PLAYER_SPEED = 8;
-    const GAME_TICK_RATE = 1000 / 30;
-    const SWING_COOLDOWN = 400; // Adjusted: Player's personal swing cooldown (decreased for faster hits)
-    const FIST_DAMAGE = 10; // Damage dealt by a player's punch (only to players now)
-    const FIST_REACH = 70; // Adjusted: How far a player's punch reaches
-    const FIST_ARC_HALF_ANGLE = Math.PI / 2; // ADJUSTED: Half a circle (90 degrees or PI/2 radians)
-    const FIST_KNOCKBACK_STRENGTH = 40; // Knockback distance when hitting with fists
+    const GAME_TICK_RATE = 1000 / 9;
+
+    // --- Base Cooldown for Weapons ---
+    // Individual weapon speed multipliers will adjust this.
+    const BASE_SWING_COOLDOWN = 400; // Milliseconds for a base (hands) swing
+
+    const FIST_ARC_HALF_ANGLE = Math.PI / 2; // Half a circle (90 degrees or PI/2 radians)
+
+    const FIST_KNOCKBACK_STRENGTH = 40; // This is now just a reference, actual knockback comes from weapon
 
     // Resource Type-Specific Constants (New approach for flexible sizes/hitboxes)
     const RESOURCE_TYPES = {
@@ -86,7 +92,8 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
 
 
     // Cooldown for emitting wiggle events (to prevent spamming clients)
-    const RESOURCE_WIGGLE_EMIT_COOLDOWN = SWING_COOLDOWN;
+    // This is now tied to the BASE_SWING_COOLDOWN, but could be made dynamic per weapon if desired.
+    const RESOURCE_WIGGLE_EMIT_COOLDOWN = BASE_SWING_COOLDOWN;
 
     // --- Aging System Constants (Renamed from Leveling System) ---
     // XP needed to reach the NEXT age from the CURRENT age.
@@ -213,6 +220,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 const player1 = players[playerIds[i]];
                 const player2 = players[playerIds[j]];
 
+                // Only collide if both players are alive
                 if (player1.isDead || player2.isDead) continue;
 
                 const dx = player2.x - player1.x;
@@ -249,6 +257,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
 
         for (let i = 0; i < playerIds.length; i++) {
             const player = players[playerIds[i]];
+            // Only collide if player is alive
             if (player.isDead) continue;
 
             for (let j = 0; j < resourceIds.length; j++) {
@@ -280,16 +289,15 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
     io.on("connection", (socket) => {
         console.log("Server: Player connected:", socket.id);
 
-        // Initialize a new player with aging properties
-        players[socket.id] = {
+        const newPlayerTemplate = {
             id: socket.id,
             x: Math.random() * (WORLD_WIDTH - 200) + 100, // Random spawn
             y: Math.random() * (WORLD_HEIGHT - 200) + 100, // Random spawn
             angle: 0,
             name: "Unnamed",
             health: MAX_HEALTH,
-            isDead: false,
-            deathTime: 0, // NEW: Initialize deathTime
+            isDead: true, // Start as dead, in main menu state
+            deathTime: Date.now(), // Set initial death time (to allow respawn)
             keys: {},
             inputAngle: 0,
             lastSwingTime: 0,
@@ -301,12 +309,16 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
             },
             age: 0, // Starting age
             xp: 0,    // Starting XP
-            xpToNextAge: calculateXpToNextAge(0) // XP needed for Age 1
+            xpToNextAge: calculateXpToNextAge(0), // XP needed for Age 1
+            currentWeapon: "hands" // NEW: Player starts with hands
         };
+        players[socket.id] = newPlayerTemplate;
 
-        // Send all current players AND resources to the new client
-        socket.emit("init", { players: players, resources: resources });
-        socket.broadcast.emit("player-joined", players[socket.id]);
+
+        // Send all current ACTIVE players AND resources to the new client
+        const activePlayers = Object.values(players).filter(p => !p.isDead);
+        socket.emit("init", { players: activePlayers, resources: resources, weaponNames: WEAPON_NAMES }); // NEW: Send weapon names
+        // Don't broadcast player-joined until they are actually in-game
 
         socket.on("send-name", (data) => {
             if (players[data.id]) {
@@ -316,26 +328,42 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
 
         socket.on("client-input", (data) => {
             const player = players[socket.id];
+            // Only process input if player is alive
             if (player && !player.isDead) {
                 player.keys = data.keys || {};
                 player.inputAngle = data.angle || 0;
-                if (data.name) {
-                    player.name = data.name;
-                }
+            }
+        });
+
+        // NEW: Handle changing a player's equipped weapon
+        socket.on('change-weapon', (weaponName) => {
+            const player = players[socket.id];
+            if (!player || player.isDead) return;
+
+            const weaponProps = getWeaponProperties(weaponName);
+            if (weaponProps) {
+                player.currentWeapon = weaponName;
+                console.log(`Server: ${player.name} changed weapon to ${weaponName}`);
+                // Optionally, emit an event to all clients to update this player's weapon visually
+                io.emit('player-weapon-changed', { playerId: player.id, weaponName: weaponName });
+            } else {
+                console.warn(`Server: Player ${player.name} tried to equip unknown weapon: ${weaponName}`);
             }
         });
 
         // NEW: Handle incoming local chat messages from a client
         socket.on('local-chat-message', (data) => {
             const sender = players[socket.id];
-            if (sender && data.message && typeof data.message === 'string' && data.message.trim().length > 0) {
+            // Only allow chat from alive players
+            if (sender && !sender.isDead && data.message && typeof data.message === 'string' && data.message.trim().length > 0) {
                 // Sanitize message to prevent XSS or very long messages
                 const cleanMessage = data.message.trim().substring(0, 100); // Max 100 chars
 
                 // Iterate through all players to find nearby ones
                 for (const playerId in players) {
                     const targetPlayer = players[playerId];
-                    if (targetPlayer.isDead) continue; // Don't send messages to dead players
+                    // Only send messages to alive players
+                    if (targetPlayer.isDead) continue;
 
                     const dx = sender.x - targetPlayer.x;
                     const dy = sender.y - targetPlayer.y;
@@ -345,6 +373,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                         // Emit the message to each nearby client
                         io.to(targetPlayer.id).emit('local-chat-message', {
                             senderId: socket.id,
+                            senderName: sender.name, // Send sender's name for client display
                             message: cleanMessage
                         });
                     }
@@ -353,130 +382,127 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
             }
         });
 
-        // Inside your socket.on('player-swing', ...)
-socket.on('player-swing', () => {
-    const attacker = players[socket.id];
-    if (!attacker || attacker.isDead) return;
+        socket.on('player-swing', () => {
+            const attacker = players[socket.id];
+            if (!attacker || attacker.isDead) return; // Don't allow dead players to swing
 
-    const now = Date.now();
-    // Only check the player's personal swing cooldown
-    if (now - attacker.lastSwingTime < SWING_COOLDOWN) {
-        return;
-    }
+            // --- Get Current Weapon Properties ---
+            const currentWeapon = getWeaponProperties(attacker.currentWeapon);
+            if (!currentWeapon) {
+                console.error(`Server: Player ${attacker.name} has invalid weapon '${attacker.currentWeapon}'. Defaulting to hands.`);
+                attacker.currentWeapon = "hands"; // Reset to hands if invalid
+                return; // Prevent swing if weapon is invalid
+            }
 
-    attacker.lastSwingTime = now; // Update the player's last swing time
-    io.emit('player-has-swung', socket.id); // Tell clients player started swing animation
+            // Calculate actual swing cooldown based on weapon speed
+            const actualSwingCooldown = BASE_SWING_COOLDOWN / currentWeapon.speed;
 
-    // --- Player vs Player hitting logic (remains the same) ---
-    for (const id in players) {
-        if (id === socket.id || players[id].isDead) continue;
+            const now = Date.now();
+            if (now - attacker.lastSwingTime < actualSwingCooldown) return;
 
-        const target = players[id];
+            attacker.lastSwingTime = now;
+            io.emit('player-has-swung', socket.id); // Tell clients player started swing animation
 
-        const dx_target = target.x - attacker.x;
-        const dy_target = target.y - attacker.y;
-        const distance_target = Math.hypot(dx_target, dy_target);
+            // --- Player vs Player hitting logic ---
+            for (const id in players) {
+                if (id === socket.id || players[id].isDead) continue; // Only hit alive players
 
-        if (distance_target <= FIST_REACH + PLAYER_COLLISION_RADIUS) {
-            const angleToTarget = Math.atan2(dy_target, dx_target);
-            const angleDiff = getShortestAngleDiff(attacker.angle, angleToTarget);
+                const target = players[id];
 
-            if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
-                target.health = Math.max(0, target.health - FIST_DAMAGE);
-                if (target.health <= 0) {
-                    target.isDead = true;
-                    target.deathTime = Date.now();
-                    console.log(`Server: ${target.name} has been defeated!`);
+                const dx_target = target.x - attacker.x;
+                const dy_target = target.y - attacker.y;
+                const distance_target = Math.hypot(dx_target, dy_target);
+
+                // Check if target is within the weapon's reach + player's radius and within the attack arc
+                if (distance_target <= currentWeapon.reach + PLAYER_COLLISION_RADIUS) {
+                    const angleToTarget = Math.atan2(dy_target, dx_target);
+                    const angleDiff = getShortestAngleDiff(attacker.angle, angleToTarget);
+
+                    if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
+                        target.health = Math.max(0, target.health - currentWeapon.dmg); // Use weapon damage
+                        if (target.health <= 0) {
+                            target.isDead = true;
+                            target.deathTime = Date.now();
+                            console.log(`Server: ${target.name} has been defeated!`);
+                            io.emit('player-died', target.id);
+                        }
+                        console.log(`Server: ${attacker.name} hit ${target.name} with ${currentWeapon.name}. ${target.name}'s health is now ${target.health}`);
+
+                        // Apply knockback to the target player using weapon's knockback
+                        const knockbackAngle = angleToTarget;
+                        target.x += Math.cos(knockbackAngle) * currentWeapon.knockback; // Use weapon knockback
+                        target.y += Math.sin(knockbackAngle) * currentWeapon.knockback;
+
+                        target.x = clamp(target.x, MAX_PLAYER_DIMENSION, WORLD_WIDTH - MAX_PLAYER_DIMENSION);
+                        target.y = clamp(target.y, MAX_PLAYER_DIMENSION, WORLD_HEIGHT - MAX_PLAYER_DIMENSION);
+                    }
                 }
-                console.log(`Server: ${attacker.name} hit ${target.name}. ${target.name}'s health is now ${target.health}`);
-
-                const knockbackAngle = angleToTarget;
-                target.x += Math.cos(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
-                target.y += Math.sin(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
-
-                target.x = clamp(target.x, MAX_PLAYER_DIMENSION, WORLD_WIDTH - MAX_PLAYER_DIMENSION);
-                target.y = clamp(target.y, MAX_PLAYER_DIMENSION, WORLD_HEIGHT - MAX_PLAYER_DIMENSION);
             }
-        }
-    }
 
-    // --- Resource Hitting Logic (MODIFIED) ---
-    for (const resId in resources) {
-        const resource = resources[resId];
+            // --- Resource Hitting Logic ---
+            for (const resId in resources) {
+                const resource = resources[resId];
 
-        const dx_resource = resource.x - attacker.x;
-        const dy_resource = resource.y - attacker.y;
-        const distanceToResource = Math.hypot(dx_resource, dy_resource);
+                const dx_resource = resource.x - attacker.x;
+                const dy_resource = resource.y - attacker.y;
+                const distanceToResource = Math.hypot(dx_resource, dy_resource);
 
-        // Check if target is within the FIST_REACH + resource's hit radius and within the attack arc
-        if (distanceToResource <= FIST_REACH + resource.hitRadius) {
-            const angleToResource = Math.atan2(dy_resource, dx_resource);
-            const angleDiff = getShortestAngleDiff(attacker.angle, angleToResource);
+                // Use weapon's reach for collection check, combined with resource's hitRadius
+                if (distanceToResource <= currentWeapon.reach + resource.hitRadius) {
+                    const angleToResource = Math.atan2(dy_resource, dx_resource);
+                    const angleDiff = getShortestAngleDiff(attacker.angle, angleToResource);
 
-            if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
-                // *** REMOVED RESOURCE-SPECIFIC COOLDOWN CHECK ***
-                // if (now - resource.lastWiggleEmitTime >= RESOURCE_WIGGLE_EMIT_COOLDOWN) {
+                    if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
+                        // Award resource and XP
+                        attacker.inventory[resource.type] += RESOURCE_PROPERTIES[resource.type].collectionAmount;
+                        attacker.xp += RESOURCE_PROPERTIES[resource.type].xpReward; // Award XP
+                        checkAgeUp(attacker); // Check for age up after gaining XP
 
-                // Award resource and XP
-                attacker.inventory[resource.type] += RESOURCE_PROPERTIES[resource.type].collectionAmount;
-                attacker.xp += RESOURCE_PROPERTIES[resource.type].xpReward; // Award XP
-                checkAgeUp(attacker); // Check for age up after gaining XP
+                        io.emit('resource-wiggled', { resourceId: resId, direction: angleToResource });
+                        // resource.lastWiggleEmitTime = now; // Only if you want visual wiggle cooldown
 
-                // Emit wiggle event for the resource (still useful for client-side animation)
-                // You might still want to keep the 'lastWiggleEmitTime' on the resource
-                // if the client-side animation depends on not spamming the wiggle for the same resource.
-                // However, it no longer prevents collection.
-                // Or you could make 'resource-wiggled' event client-side only if a hit is detected.
-                // For now, let's keep it emitting, but it doesn't gate collection.
-                io.emit('resource-wiggled', { resourceId: resId, direction: angleToResource });
-                // If you want the wiggle animation to still have a cooldown to prevent spamming it visually:
-                // resource.lastWiggleEmitTime = now; // Only update if you want the visual wiggle to have a cooldown
-
-                console.log(`Server: ${attacker.name} collected ${RESOURCE_PROPERTIES[resource.type].collectionAmount} ${resource.type} from resource ID ${resId}. Inventory:`, attacker.inventory);
-                console.log(`Server: ${attacker.name} gained ${RESOURCE_PROPERTIES[resource.type].xpReward} XP. Current XP: ${attacker.xp}/${attacker.xpToNextAge}`);
-
-                // *** IMPORTANT: No 'break;' here if you want a single swing to potentially hit multiple resources ***
-                // If you want a single swing to only hit ONE resource even if multiple are in range,
-                // uncomment the 'break;' below. But your request is 'infinite can hit at a time',
-                // which implies a single player's swing can collect from all resources in range.
-                // If you mean infinite players can hit the *same* resource, the above logic already
-                // achieves that by removing the resource-specific cooldown.
-                // break; // Remove this if a single swing can hit multiple resources
+                        console.log(`Server: ${attacker.name} collected ${RESOURCE_PROPERTIES[resource.type].collectionAmount} ${resource.type} with ${currentWeapon.name}. Inventory:`, attacker.inventory);
+                        console.log(`Server: ${attacker.name} gained ${RESOURCE_PROPERTIES[resource.type].xpReward} XP. Current XP: ${attacker.xp}/${attacker.xpToNextAge}`);
+                    }
+                }
             }
-        }
-    }
-});
+        });
 
         socket.on('respawn', () => {
             const player = players[socket.id];
-            if (player && player.isDead) {
+            if (player && player.isDead) { // Only respawn if dead
                 console.log(`Server: ${player.name} is respawning.`);
                 player.health = MAX_HEALTH;
-                player.isDead = false;
-                player.deathTime = 0; // NEW: Reset deathTime on respawn
+                player.isDead = false; // Player is now alive
+                player.deathTime = 0; // Reset deathTime on respawn
                 player.x = Math.random() * (WORLD_WIDTH - 200) + 100;
                 player.y = Math.random() * (WORLD_HEIGHT - 200) + 100;
-                // Reset player's inventory and age/XP on respawn
                 player.inventory = {
                     wood: 0,
                     stone: 0,
                     food: 0,
-                    gold: 0 // Reset gold on respawn
+                    gold: 0
                 };
-                player.age = 0; // Reset to age 0
-                player.xp = 0;    // Reset XP
-                player.xpToNextAge = calculateXpToNextAge(0); // Reset XP target for Age 1
+                player.age = 0;
+                player.xp = 0;
+                player.xpToNextAge = calculateXpToNextAge(0);
+                player.currentWeapon = "hands"; // NEW: Reset weapon to hands on respawn
+
+                // Now that the player is alive, send their data to everyone
+                io.emit("player-respawned", player); // Notify others this player is now active
+                // Client-side should then update its view to show the player and switch from main menu
             }
         });
 
         socket.on("disconnect", () => {
             console.log("Server: Player disconnected:", socket.id);
+            // When a client disconnects, completely remove their player object from the server state
             delete players[socket.id];
-            io.emit("player-left", socket.id);
+            io.emit("player-left", socket.id); // Notify all clients to remove this player
         });
 
         // Handle ping requests from client and send pong back
-        socket.on('ping', () => {
+        socket.on('ping', (data) => {
             socket.emit('pong', Date.now());
         });
     });
@@ -486,9 +512,16 @@ socket.on('player-swing', () => {
 
     // --- Server-Side Game Loop ---
     setInterval(() => {
+        // Create a temporary object for active players to send to clients
+        const playersToSend = {};
         for (const id in players) {
             const player = players[id];
-            if (player.isDead) continue; // Do not move dead players
+            if (player.isDead) {
+                // If the player is dead, don't process their movement or send their data
+                // to other clients as part of the normal game state update.
+                // This means their 'ghost' won't move.
+                continue;
+            }
 
             let moveX = 0;
             let moveY = 0;
@@ -507,11 +540,15 @@ socket.on('player-swing', () => {
             player.y = clamp(player.y, MAX_PLAYER_DIMENSION, WORLD_HEIGHT - MAX_PLAYER_DIMENSION);
 
             player.angle = player.inputAngle;
+
+            // Only add alive players to the object sent to clients
+            playersToSend[id] = player;
         }
 
         checkPlayerCollisions();
         checkPlayerResourceCollisions();
 
-        io.emit("player-moved", { players: players, resources: resources });
+        // Emit only the active players
+        io.emit("player-moved", { players: playersToSend, resources: resources });
     }, GAME_TICK_RATE);
 });
