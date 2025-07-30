@@ -173,33 +173,30 @@ const weapons = new Map([
     }]
 ]);
 
-weapons.keys().forEach(function (weaponName, index) {
-    const weapon = weapons.get(weaponName); // Define weapon.
+// Snapshot of keys to avoid infinite growth
+const originalKeys = Array.from(weapons.keys());
 
-    weapon.id = index; // Define 'id' for each weapon
-    weapon.name = weaponName; // Define 'name' for each weapon
+originalKeys.forEach((weaponName, index) => {
+    const weapon = weapons.get(weaponName);
 
-    weapons.set(weapon.id, weapon); // Set exact same weapon value to key named 'id'
+    weapon.id = index;
+    weapon.name = weaponName;
+
+    weapons.set(weapon.id, weapon); // now safe: we're not modifying the keys we're iterating
 });
 
 /**
- * Retrieves the properties of a specific weapon by its name.
- * @param {string|number} weaponName - The key. it's either id or name of weapon (e.g., "axe", "hands", 1, 0).
- * @returns {object|null} The weapon's properties object, or null if not found.
+ * Retrieves the properties of a specific weapon by its name or ID.
+ * @param {string|number} key - Weapon name or ID (e.g., "axe", 0).
+ * @returns {object|null} The weapon object or null.
  */
 export function getWeaponProperties(key) {
     if (weapons.has(key)) {
-        return weapons.get[key];
+        return weapons.get(key); // ✅ FIXED: proper Map access
     }
     console.warn(`Weapon '${key}' not found in 'weapons'.`);
     return null;
 }
 
-// Export the entire weapon keys for broader access if needed
-export const weaponKeys = weapons.keys();
-
-// Export the entire weapon values for broader access if needed
-export const weaponValues = weapons.values();
-
-
-
+export const weaponKeys = Array.from(weapons.keys());   // Convert to array for safe reuse
+export const weaponValues = Array.from(weapons.values());
