@@ -48,7 +48,7 @@ export const healthBarOutlineColor = "black"; // Export
 export const healthBarOutlineWidth = 2; // Export
 
 // Aesthetic green colors
-export const backgroundColor = "#4a6741";   // Export
+export const backgroundColor = "#b5d58d";   // Export
 export const worldBorderColor = "#3D8E41"; // Export
 export const gridColor = "#b5d58d";        // Export
 
