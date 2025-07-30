@@ -79,55 +79,55 @@ export function getResSprite(obj, resourceDrawSize, resourceOutlineColor, resour
                 }
                 tmpContext.restore();
             }
-        } else if (moomooType == 1) { // Food (Wheat Bush) - NEW DESIGN
-        const wheatBaseWidth = RESOURCE_PROPERTIES[RESOURCE_TYPES.FOOD].collisionRadius * 0.8; // e.g., ~56px
-        const wheatBaseHeight = RESOURCE_PROPERTIES[RESOURCE_TYPES.FOOD].collisionRadius * 1.5; // e.g., ~105px
-        const stemColor = '#6B8E23'; // Olive green for stems
-        const headColor = '#DAA520'; // Goldenrod for wheat heads
-        const innerHeadColor = '#FFD700'; // Gold for highlights on heads
-        const stemOutlineColor = '#4B5320'; // Darker green for stem outlines
+        } else if (moomooType == 1) { // Food (Wheat Bush) - TOP-DOWN DESIGN
+            const radius = RESOURCE_PROPERTIES[RESOURCE_TYPES.FOOD].collisionRadius;
+            const stemColor = '#6B8E23';          // Olive green
+            const headColor = '#DAA520';          // Goldenrod
+            const innerHeadColor = '#FFD700';     // Brighter gold for center
+            const outlineColor = resourceOutlineColor;
 
-        tmpContext.save();
-        tmpContext.rotate(UTILS.randFloat(-0.05, 0.05)); // Slight random rotation for natural look
+            const numStalks = 12 + UTILS.randInt(0, 5); // 12–17 wheat stalks
+            const stalkLength = radius * 0.9;
+            const stalkWidth = 2;
 
-        const numStems = 3 + UTILS.randInt(0, 2); // 3 to 5 stems
-        const stemGap = wheatBaseWidth / (numStems + 1);
-        console.log('wheat bush');
-        for (let i = 0; i < numStems; i++) {
-            const stemX = (i - (numStems - 1) / 2) * stemGap;
-            const stemHeight = wheatBaseHeight * UTILS.randFloat(0.9, 1.1);
-            const stemWidth = resourceOutlineWidth * 2; // Thin stems
+            tmpContext.save();
+            tmpContext.rotate(UTILS.randFloat(0, Math.PI * 2)); // Random rotation for natural variation
 
-            // Draw stem
-            tmpContext.fillStyle = stemColor;
-            tmpContext.strokeStyle = stemOutlineColor;
-            tmpContext.lineWidth = resourceOutlineWidth;
-            tmpContext.beginPath();
-            tmpContext.roundRect(stemX - stemWidth / 2, -stemHeight / 2, stemWidth, stemHeight, stemWidth / 2);
-            tmpContext.fill();
-            tmpContext.stroke();
+            for (let i = 0; i < numStalks; i++) {
+                const angle = (Math.PI * 2 / numStalks) * i + UTILS.randFloat(-0.1, 0.1);
+                const dist = radius * UTILS.randFloat(0.3, 0.7); // Offset from center
+                const x = Math.cos(angle) * dist;
+                const y = Math.sin(angle) * dist;
+                const length = stalkLength * UTILS.randFloat(0.6, 1.0);
 
-            // Draw wheat head (a small blob/star at the top of the stem)
-            const headRadius = stemWidth * 4; // Size of the wheat head
-            tmpContext.fillStyle = headColor;
-            tmpContext.strokeStyle = resourceOutlineColor;
-            tmpContext.lineWidth = resourceOutlineWidth;
-            tmpContext.beginPath();
-            // Position head slightly above the stem
-            tmpContext.ellipse(stemX, -stemHeight / 2 - headRadius * 0.4, headRadius, headRadius * 1.5, UTILS.randFloat(-0.2, 0.2), 0, Math.PI * 2);
-            tmpContext.fill();
-            tmpContext.stroke();
+                tmpContext.save();
+                tmpContext.translate(x, y);
+                tmpContext.rotate(angle);
 
-            // Add small inner detail for more texture
-            tmpContext.fillStyle = innerHeadColor;
-            tmpContext.beginPath();
-            tmpContext.ellipse(stemX, -stemHeight / 2 - headRadius * 0.4, headRadius * 0.6, headRadius * 1.2, UTILS.randFloat(-0.2, 0.2), 0, Math.PI * 2);
-            tmpContext.fill();
-        }
+                // Stem
+                tmpContext.fillStyle = stemColor;
+                tmpContext.fillRect(-stalkWidth / 2, 0, stalkWidth, length * 0.6);
 
-        tmpContext.restore(); // Restore context after rotation and alpha changes
+                // Wheat head (golden oval at end of stalk)
+                tmpContext.fillStyle = headColor;
+                tmpContext.strokeStyle = outlineColor;
+                tmpContext.lineWidth = resourceOutlineWidth;
+                tmpContext.beginPath();
+                tmpContext.ellipse(0, length * 0.7, 5, 8, 0, 0, Math.PI * 2);
+                tmpContext.fill();
+                tmpContext.stroke();
 
-        } else if (moomooType == 2) { // Stone - UNCHANGED (moomooType 2)
+                // Inner highlight
+                tmpContext.fillStyle = innerHeadColor;
+                tmpContext.beginPath();
+                tmpContext.ellipse(0, length * 0.7, 2, 4, 0, 0, Math.PI * 2);
+                tmpContext.fill();
+
+                tmpContext.restore();
+            }
+
+            tmpContext.restore();
+    } else if (moomooType == 2) { // Stone - UNCHANGED (moomooType 2)
             tmpContext.fillStyle = (biomeID == 2 ? '#938d77' : '#939393'); // Original stone color
             renderStar(tmpContext, 3, tmpScale, tmpScale);
             tmpContext.fill();
