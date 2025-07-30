@@ -114,12 +114,12 @@ export const COUNTER_ICON_SIZE = 20; // Export
 
 // Ping Counter Constants
 export const PING_INTERVAL = 2000; // Export
-export const PING_FONT_SIZE = 28; // Export
+export const PING_FONT_SIZE = 22; // Export
 export const PING_TEXT_COLOR = "white"; // Export
 export const PING_BACKGROUND_COLOR = "rgba(0, 0, 0, 0.6)"; // Export
-export const PING_BORDER_RADIUS = 10; // Export
-export const PING_PADDING_X = 20; // Export
-export const PING_PADDING_Y = 10; // Export
+export const PING_BORDER_RADIUS = 8; // Export
+export const PING_PADDING_X = 16; // Export
+export const PING_PADDING_Y = 8; // Export
 
 // Player Damage Visual Constants
 export const PLAYER_DAMAGE_WIGGLE_STRENGTH = 10; // Export
