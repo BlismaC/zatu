@@ -2,7 +2,7 @@ const path = require("path");
 const fastify = require("fastify")({ logger: false });
 const fastifyStatic = require("@fastify/static");
 
-const { WEAPON_DATA, getWeaponProperties, WEAPON_NAMES } = require("./weapons");
+const { WEAPON_DATA, getWeaponProperties, WEAPON_NAMES } = require("./public/client/weapons");
 
 // --- Static Files Setup ---
 fastify.register(fastifyStatic, {
