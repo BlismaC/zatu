@@ -1,7 +1,7 @@
 // weapons.js - Defines all weapon properties for the game.
 // This file centralizes weapon data for easy management and balancing.
 
-export const WEAPON_DATA = new Map([
+const WEAPON_DATA = new Map([
     // Default Weapon (Age 0) - Matches existing server.js FIST_DAMAGE and FIST_KNOCKBACK_STRENGTH
     // This is the baseline for all other weapons.
     ["hands", {
@@ -207,7 +207,7 @@ WEAPON_DATA.forEach((weapon, name) => {
  * @param {string} weaponName - The name of the weapon (e.g., "axe").
  * @returns {object|null} The weapon object or null if not found.
  */
-export function getWeaponProperties(weaponName) {
+function getWeaponProperties(weaponName) {
     return WEAPON_DATA.get(weaponName) || null;
 }
 
