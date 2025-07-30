@@ -2,10 +2,6 @@ const path = require("path");
 const fastify = require("fastify")({ logger: false });
 const fastifyStatic = require("@fastify/static");
 
-// --- Import Weapon Data ---
-// Ensure weapons.js is accessible in the public directory or adjust path
-const { getWeaponProperties } = require('./public/client/weapons.js'); // Assuming weapons.js is in public for Node.js modules
-
 // --- Static Files Setup ---
 fastify.register(fastifyStatic, {
     root: path.join(__dirname, "public"), // Assuming 'public' is where index.html and client.js are
@@ -29,20 +25,18 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
     let resources = {}; // Object to hold all resource nodes (now permanent and infinite)
     let resourceIdCounter = 0; // To assign unique IDs to resources
 
-    // Core Game Constants (now distinct from weapon-specific stats)
     const MAX_HEALTH = 100;
-    const WORLD_WIDTH = 10000;
-    const WORLD_HEIGHT = 10000;
+    const WORLD_WIDTH = 4000;
+    const WORLD_HEIGHT = 4000;
     const PLAYER_COLLISION_RADIUS = 30; // Player hitbox size
     const MAX_PLAYER_DIMENSION = PLAYER_COLLISION_RADIUS;
     const PLAYER_SPEED = 8;
     const GAME_TICK_RATE = 1000 / 30;
-
-    // Base cooldown for hand/default weapon, modified by weapon speed
-    const BASE_SWING_COOLDOWN = 400; // Milliseconds for a 'hands' swing
-    const BASE_FIST_REACH = 70; // Base reach for fist/default weapon
-    const FIST_ARC_HALF_ANGLE = Math.PI / 2; // Half a circle (90 degrees or PI/2 radians)
-
+    const SWING_COOLDOWN = 400; // Adjusted: Player's personal swing cooldown (decreased for faster hits)
+    const FIST_DAMAGE = 10; // Damage dealt by a player's punch (only to players now)
+    const FIST_REACH = 70; // Adjusted: How far a player's punch reaches
+    const FIST_ARC_HALF_ANGLE = Math.PI / 2; // ADJUSTED: Half a circle (90 degrees or PI/2 radians)
+    const FIST_KNOCKBACK_STRENGTH = 40; // Knockback distance when hitting with fists
 
     // Resource Type-Specific Constants (New approach for flexible sizes/hitboxes)
     const RESOURCE_TYPES = {
@@ -75,12 +69,12 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
         [RESOURCE_TYPES.GOLD]: { // NEW: Gold properties
             collectionAmount: 10, // Changed: Gold gives 10 per collection
             xpReward: 15.0, // Gold gives more XP
-            collisionRadius: 100, // Similar size to bush/stone
-            hitRadius: 120,
+            collisionRadius: 70, // Similar size to bush/stone
+            hitRadius: 90,
         }
     };
 
-    const RESOURCE_COUNT_TOTAL = Math.random() * 100 + 30; // Fixed total number of resources on the map
+    const RESOURCE_COUNT_TOTAL = 30; // Fixed total number of resources on the map
 
     // Define weights for resource spawning (more chances for common resources)
     const RESOURCE_SPAWN_WEIGHTS = [
@@ -90,8 +84,9 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
         RESOURCE_TYPES.GOLD // 1 part gold (rarer)
     ];
 
+
     // Cooldown for emitting wiggle events (to prevent spamming clients)
-    const RESOURCE_WIGGLE_EMIT_COOLDOWN = BASE_SWING_COOLDOWN; // Using base swing cooldown for consistency
+    const RESOURCE_WIGGLE_EMIT_COOLDOWN = SWING_COOLDOWN;
 
     // --- Aging System Constants (Renamed from Leveling System) ---
     // XP needed to reach the NEXT age from the CURRENT age.
@@ -106,9 +101,6 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
 
     // NEW: Chat Range for proximity-based messages
     const CHAT_RANGE = 500; // Players within this distance can see the message bubble
-
-    // Variable to track the top killer for client updates
-    let topKillerId = null;
 
     function calculateXpToNextAge(currentAge) {
         if (AGE_XP_REQUIREMENTS[currentAge] !== undefined) {
@@ -209,8 +201,6 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
             console.log(`Server: ${player.name} aged up to Age ${player.age}!`);
             // Potentially add age-up effects here (e.g., heal, stat increase)
             player.health = MAX_HEALTH; // Fully heal on age up
-
-            // idea: we can add sum skill panel thing like in diep.io and at every age up it maybe give us 1-2 points
         }
     }
 
@@ -290,7 +280,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
     io.on("connection", (socket) => {
         console.log("Server: Player connected:", socket.id);
 
-        // Initialize a new player with aging properties and default weapon
+        // Initialize a new player with aging properties
         players[socket.id] = {
             id: socket.id,
             x: Math.random() * (WORLD_WIDTH - 200) + 100, // Random spawn
@@ -303,13 +293,11 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
             keys: {},
             inputAngle: 0,
             lastSwingTime: 0,
-            equippedWeapon: 'hands', // NEW: Default equipped weapon
             inventory: { // Simple inventory for resources
                 wood: 0,
                 stone: 0,
                 food: 0,
-                gold: 0, // Initialize gold inventory
-                kills: 0
+                gold: 0 // Initialize gold inventory
             },
             age: 0, // Starting age
             xp: 0,    // Starting XP
@@ -317,7 +305,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
         };
 
         // Send all current players AND resources to the new client
-        socket.emit("init", { players: players, resources: resources, topKillerId: topKillerId }); // Also send top killer on init
+        socket.emit("init", { players: players, resources: resources });
         socket.broadcast.emit("player-joined", players[socket.id]);
 
         socket.on("send-name", (data) => {
@@ -341,6 +329,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
         socket.on('local-chat-message', (data) => {
             const sender = players[socket.id];
             if (sender && data.message && typeof data.message === 'string' && data.message.trim().length > 0) {
+                // Sanitize message to prevent XSS or very long messages
                 const cleanMessage = data.message.trim().substring(0, 100); // Max 100 chars
 
                 // Iterate through all players to find nearby ones
@@ -369,18 +358,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
             if (!attacker || attacker.isDead) return;
 
             const now = Date.now();
-
-            // Get weapon properties
-            const equippedWeaponData = getWeaponProperties(attacker.equippedWeapon);
-            // Fallback to default hands if for some reason the weapon data isn't found
-            const weaponDamage = equippedWeaponData ? equippedWeaponData.dmg : getWeaponProperties('hands').dmg;
-            const weaponKnockback = equippedWeaponData ? equippedWeaponData.knockback : getWeaponProperties('hands').knockback;
-            const weaponSpeedMultiplier = equippedWeaponData ? equippedWeaponData.speed : getWeaponProperties('hands').speed;
-
-            // Calculate effective cooldown based on weapon speed
-            const effectiveSwingCooldown = BASE_SWING_COOLDOWN / weaponSpeedMultiplier;
-
-            if (now - attacker.lastSwingTime < effectiveSwingCooldown) return;
+            if (now - attacker.lastSwingTime < SWING_COOLDOWN) return;
 
             attacker.lastSwingTime = now;
             io.emit('player-has-swung', socket.id); // Tell clients player started swing animation
@@ -395,24 +373,24 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 const dy_target = target.y - attacker.y;
                 const distance_target = Math.hypot(dx_target, dy_target);
 
-                // Check if target is within the weapon's reach + player's radius and within the attack arc
-                if (distance_target <= BASE_FIST_REACH + PLAYER_COLLISION_RADIUS) { // FIST_REACH here represents the general weapon reach
+                // Check if target is within the FIST_REACH + player's radius and within the attack arc
+                if (distance_target <= FIST_REACH + PLAYER_COLLISION_RADIUS) {
                     const angleToTarget = Math.atan2(dy_target, dx_target);
                     const angleDiff = getShortestAngleDiff(attacker.angle, angleToTarget);
 
                     if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
-                        target.health = Math.max(0, target.health - weaponDamage); // Use dynamic weapon damage
+                        target.health = Math.max(0, target.health - FIST_DAMAGE);
                         if (target.health <= 0) {
                             target.isDead = true;
-                            target.deathTime = Date.now(); 
+                            target.deathTime = Date.now(); // NEW: Set death time
                             console.log(`Server: ${target.name} has been defeated!`);
-                            attacker.inventory.kills = (attacker.inventory.kills || 0) + 1; // Increment kills
                         }
-                        console.log(`Server: ${attacker.name} hit ${target.name} with ${attacker.equippedWeapon}. ${target.name}'s health is now ${target.health}`);
+                        console.log(`Server: ${attacker.name} hit ${target.name}. ${target.name}'s health is now ${target.health}`);
 
+                        // Apply knockback to the target player
                         const knockbackAngle = angleToTarget;
-                        target.x += Math.cos(knockbackAngle) * weaponKnockback; // Use dynamic weapon knockback
-                        target.y += Math.sin(knockbackAngle) * weaponKnockback;
+                        target.x += Math.cos(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
+                        target.y += Math.sin(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
 
                         target.x = clamp(target.x, MAX_PLAYER_DIMENSION, WORLD_WIDTH - MAX_PLAYER_DIMENSION);
                         target.y = clamp(target.y, MAX_PLAYER_DIMENSION, WORLD_HEIGHT - MAX_PLAYER_DIMENSION);
@@ -420,6 +398,7 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 }
             }
 
+            // Check for hitting resources
             for (const resId in resources) {
                 const resource = resources[resId];
 
@@ -427,17 +406,21 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 const dy_resource = resource.y - attacker.y;
                 const distanceToResource = Math.hypot(dx_resource, dy_resource);
 
-                if (distanceToResource <= BASE_FIST_REACH + resource.hitRadius) { // FIST_REACH here represents general weapon reach
+                // Use resource.hitRadius for collection check, combined with FIST_REACH for arc distance
+                if (distanceToResource <= FIST_REACH + resource.hitRadius) {
                     const angleToResource = Math.atan2(dy_resource, dx_resource);
                     const angleDiff = getShortestAngleDiff(attacker.angle, angleToResource);
 
                     if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
+                        // Only emit wiggle event and award resource if cooldown has passed
+                        const now = Date.now(); // Get current time inside the loop for accurate cooldown
                         if (now - resource.lastWiggleEmitTime >= RESOURCE_WIGGLE_EMIT_COOLDOWN) {
                             io.emit('resource-wiggled', { resourceId: resId, direction: angleToResource });
                             
+                            // Award resource and XP
                             attacker.inventory[resource.type] += RESOURCE_PROPERTIES[resource.type].collectionAmount;
-                            attacker.xp += RESOURCE_PROPERTIES[resource.type].xpReward; 
-                            checkAgeUp(attacker); 
+                            attacker.xp += RESOURCE_PROPERTIES[resource.type].xpReward; // Award XP
+                            checkAgeUp(attacker); // Check for age up after gaining XP
 
                             resource.lastWiggleEmitTime = now;
                             console.log(`Server: ${attacker.name} collected ${RESOURCE_PROPERTIES[resource.type].collectionAmount} ${resource.type}. Inventory:`, attacker.inventory);
@@ -454,20 +437,19 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
                 console.log(`Server: ${player.name} is respawning.`);
                 player.health = MAX_HEALTH;
                 player.isDead = false;
-                player.deathTime = 0; 
+                player.deathTime = 0; // NEW: Reset deathTime on respawn
                 player.x = Math.random() * (WORLD_WIDTH - 200) + 100;
                 player.y = Math.random() * (WORLD_HEIGHT - 200) + 100;
+                // Reset player's inventory and age/XP on respawn
                 player.inventory = {
                     wood: 0,
                     stone: 0,
                     food: 0,
-                    gold: 0,
-                    kills: 0,
+                    gold: 0 // Reset gold on respawn
                 };
-                player.age = 0;
-                player.xp = 0; 
-                player.xpToNextAge = calculateXpToNextAge(0);
-                player.equippedWeapon = 'hands'; // Reset weapon on respawn
+                player.age = 0; // Reset to age 0
+                player.xp = 0;    // Reset XP
+                player.xpToNextAge = calculateXpToNextAge(0); // Reset XP target for Age 1
             }
         });
 
@@ -488,22 +470,9 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
 
     // --- Server-Side Game Loop ---
     setInterval(() => {
-        // Find the top killer for this tick
-        let currentTopKiller = null;
-        let maxKills = 0;
-        for (const id in players) {
-            const p = players[id];
-            // Only consider living players with at least one kill
-            if (!p.isDead && (p.inventory.kills || 0) > maxKills) {
-                maxKills = p.inventory.kills;
-                currentTopKiller = id;
-            }
-        }
-        topKillerId = currentTopKiller; // Update the global topKillerId
-
         for (const id in players) {
             const player = players[id];
-            if (player.isDead) continue; 
+            if (player.isDead) continue; // Do not move dead players
 
             let moveX = 0;
             let moveY = 0;
@@ -527,7 +496,6 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
         checkPlayerCollisions();
         checkPlayerResourceCollisions();
 
-        // Send top killer ID with player updates
-        io.emit("player-moved", { players: players, resources: resources, topKillerId: topKillerId });
+        io.emit("player-moved", { players: players, resources: resources });
     }, GAME_TICK_RATE);
 });
