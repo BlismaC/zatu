@@ -353,83 +353,99 @@ fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" }, (err, addres
             }
         });
 
-        socket.on('player-swing', () => {
-            const attacker = players[socket.id];
-            if (!attacker || attacker.isDead) return;
+        // Inside your socket.on('player-swing', ...)
+socket.on('player-swing', () => {
+    const attacker = players[socket.id];
+    if (!attacker || attacker.isDead) return;
 
-            const now = Date.now();
-            if (now - attacker.lastSwingTime < SWING_COOLDOWN) return;
+    const now = Date.now();
+    // Only check the player's personal swing cooldown
+    if (now - attacker.lastSwingTime < SWING_COOLDOWN) {
+        return;
+    }
 
-            attacker.lastSwingTime = now;
-            io.emit('player-has-swung', socket.id); // Tell clients player started swing animation
+    attacker.lastSwingTime = now; // Update the player's last swing time
+    io.emit('player-has-swung', socket.id); // Tell clients player started swing animation
 
-            // Check for hitting other players
-            for (const id in players) {
-                if (id === socket.id || players[id].isDead) continue;
+    // --- Player vs Player hitting logic (remains the same) ---
+    for (const id in players) {
+        if (id === socket.id || players[id].isDead) continue;
 
-                const target = players[id];
+        const target = players[id];
 
-                const dx_target = target.x - attacker.x;
-                const dy_target = target.y - attacker.y;
-                const distance_target = Math.hypot(dx_target, dy_target);
+        const dx_target = target.x - attacker.x;
+        const dy_target = target.y - attacker.y;
+        const distance_target = Math.hypot(dx_target, dy_target);
 
-                // Check if target is within the FIST_REACH + player's radius and within the attack arc
-                if (distance_target <= FIST_REACH + PLAYER_COLLISION_RADIUS) {
-                    const angleToTarget = Math.atan2(dy_target, dx_target);
-                    const angleDiff = getShortestAngleDiff(attacker.angle, angleToTarget);
+        if (distance_target <= FIST_REACH + PLAYER_COLLISION_RADIUS) {
+            const angleToTarget = Math.atan2(dy_target, dx_target);
+            const angleDiff = getShortestAngleDiff(attacker.angle, angleToTarget);
 
-                    if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
-                        target.health = Math.max(0, target.health - FIST_DAMAGE);
-                        if (target.health <= 0) {
-                            target.isDead = true;
-                            target.deathTime = Date.now(); // NEW: Set death time
-                            console.log(`Server: ${target.name} has been defeated!`);
-                        }
-                        console.log(`Server: ${attacker.name} hit ${target.name}. ${target.name}'s health is now ${target.health}`);
-
-                        // Apply knockback to the target player
-                        const knockbackAngle = angleToTarget;
-                        target.x += Math.cos(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
-                        target.y += Math.sin(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
-
-                        target.x = clamp(target.x, MAX_PLAYER_DIMENSION, WORLD_WIDTH - MAX_PLAYER_DIMENSION);
-                        target.y = clamp(target.y, MAX_PLAYER_DIMENSION, WORLD_HEIGHT - MAX_PLAYER_DIMENSION);
-                    }
+            if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
+                target.health = Math.max(0, target.health - FIST_DAMAGE);
+                if (target.health <= 0) {
+                    target.isDead = true;
+                    target.deathTime = Date.now();
+                    console.log(`Server: ${target.name} has been defeated!`);
                 }
+                console.log(`Server: ${attacker.name} hit ${target.name}. ${target.name}'s health is now ${target.health}`);
+
+                const knockbackAngle = angleToTarget;
+                target.x += Math.cos(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
+                target.y += Math.sin(knockbackAngle) * FIST_KNOCKBACK_STRENGTH;
+
+                target.x = clamp(target.x, MAX_PLAYER_DIMENSION, WORLD_WIDTH - MAX_PLAYER_DIMENSION);
+                target.y = clamp(target.y, MAX_PLAYER_DIMENSION, WORLD_HEIGHT - MAX_PLAYER_DIMENSION);
             }
+        }
+    }
 
-            // Check for hitting resources
-            for (const resId in resources) {
-                const resource = resources[resId];
+    // --- Resource Hitting Logic (MODIFIED) ---
+    for (const resId in resources) {
+        const resource = resources[resId];
 
-                const dx_resource = resource.x - attacker.x;
-                const dy_resource = resource.y - attacker.y;
-                const distanceToResource = Math.hypot(dx_resource, dy_resource);
+        const dx_resource = resource.x - attacker.x;
+        const dy_resource = resource.y - attacker.y;
+        const distanceToResource = Math.hypot(dx_resource, dy_resource);
 
-                // Use resource.hitRadius for collection check, combined with FIST_REACH for arc distance
-                if (distanceToResource <= FIST_REACH + resource.hitRadius) {
-                    const angleToResource = Math.atan2(dy_resource, dx_resource);
-                    const angleDiff = getShortestAngleDiff(attacker.angle, angleToResource);
+        // Check if target is within the FIST_REACH + resource's hit radius and within the attack arc
+        if (distanceToResource <= FIST_REACH + resource.hitRadius) {
+            const angleToResource = Math.atan2(dy_resource, dx_resource);
+            const angleDiff = getShortestAngleDiff(attacker.angle, angleToResource);
 
-                    if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
-                        // Only emit wiggle event and award resource if cooldown has passed
-                        const now = Date.now(); // Get current time inside the loop for accurate cooldown
-                        if (now - resource.lastWiggleEmitTime >= RESOURCE_WIGGLE_EMIT_COOLDOWN) {
-                            io.emit('resource-wiggled', { resourceId: resId, direction: angleToResource });
-                            
-                            // Award resource and XP
-                            attacker.inventory[resource.type] += RESOURCE_PROPERTIES[resource.type].collectionAmount;
-                            attacker.xp += RESOURCE_PROPERTIES[resource.type].xpReward; // Award XP
-                            checkAgeUp(attacker); // Check for age up after gaining XP
+            if (Math.abs(angleDiff) <= FIST_ARC_HALF_ANGLE) {
+                // *** REMOVED RESOURCE-SPECIFIC COOLDOWN CHECK ***
+                // if (now - resource.lastWiggleEmitTime >= RESOURCE_WIGGLE_EMIT_COOLDOWN) {
 
-                            resource.lastWiggleEmitTime = now;
-                            console.log(`Server: ${attacker.name} collected ${RESOURCE_PROPERTIES[resource.type].collectionAmount} ${resource.type}. Inventory:`, attacker.inventory);
-                            console.log(`Server: ${attacker.name} gained ${RESOURCE_PROPERTIES[resource.type].xpReward} XP. Current XP: ${attacker.xp}/${attacker.xpToNextAge}`);
-                        }
-                    }
-                }
+                // Award resource and XP
+                attacker.inventory[resource.type] += RESOURCE_PROPERTIES[resource.type].collectionAmount;
+                attacker.xp += RESOURCE_PROPERTIES[resource.type].xpReward; // Award XP
+                checkAgeUp(attacker); // Check for age up after gaining XP
+
+                // Emit wiggle event for the resource (still useful for client-side animation)
+                // You might still want to keep the 'lastWiggleEmitTime' on the resource
+                // if the client-side animation depends on not spamming the wiggle for the same resource.
+                // However, it no longer prevents collection.
+                // Or you could make 'resource-wiggled' event client-side only if a hit is detected.
+                // For now, let's keep it emitting, but it doesn't gate collection.
+                io.emit('resource-wiggled', { resourceId: resId, direction: angleToResource });
+                // If you want the wiggle animation to still have a cooldown to prevent spamming it visually:
+                // resource.lastWiggleEmitTime = now; // Only update if you want the visual wiggle to have a cooldown
+
+                console.log(`Server: ${attacker.name} collected ${RESOURCE_PROPERTIES[resource.type].collectionAmount} ${resource.type} from resource ID ${resId}. Inventory:`, attacker.inventory);
+                console.log(`Server: ${attacker.name} gained ${RESOURCE_PROPERTIES[resource.type].xpReward} XP. Current XP: ${attacker.xp}/${attacker.xpToNextAge}`);
+
+                // *** IMPORTANT: No 'break;' here if you want a single swing to potentially hit multiple resources ***
+                // If you want a single swing to only hit ONE resource even if multiple are in range,
+                // uncomment the 'break;' below. But your request is 'infinite can hit at a time',
+                // which implies a single player's swing can collect from all resources in range.
+                // If you mean infinite players can hit the *same* resource, the above logic already
+                // achieves that by removing the resource-specific cooldown.
+                // break; // Remove this if a single swing can hit multiple resources
             }
-        });
+        }
+    }
+});
 
         socket.on('respawn', () => {
             const player = players[socket.id];
