@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZATU.IO</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9587111608844843"
+     crossorigin="anonymous"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #333;
+            font-family: sans-serif;
+        }
+        #gameCanvas {
+            /* Canvas is always visible and fills the viewport */
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            cursor: crosshair;
+            background-color: #b5d58d; /* Ensure canvas background matches game background */
+            position: absolute; /* Position it behind other elements */
+            top: 0;
+            left: 0;
+            z-index: 1; /* Lowest z-index, always visible */
+        }
+        #mainMenuBackground {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('assets/background.png');
+            background-size: cover; /* Cover the entire area */
+            background-position: center; /* Center the image */
+            z-index: 2; /* Higher than canvas (1), lower than mainMenu (100) */
+            display: block; /* Visible by default on initial page load */
+        }
+        #mainMenu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            /* Now transparent to show either mainMenuBackground or gameCanvas */
+            background: transparent; 
+            padding: 40px;
+            border-radius: 15px; /* More rounded */
+            text-align: center;
+            z-index: 100; /* Stays on top */
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); /* More pronounced shadow */
+            border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle white border */
+        }
+        h1 {
+            color: white;
+            margin-top: 0;
+            font-size: 4em; /* Larger title */
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            letter-spacing: 2px;
+        }
+        #playerNameInput {
+            font-size: 1.2em;
+            padding: 12px 15px; /* Slightly more padding */
+            border-radius: 8px; /* Slightly rounded */
+            border: 1px solid #666; /* Darker border */
+            background-color: #333; /* Darker input background */
+            color: white;
+            width: 80%;
+            max-width: 280px; /* Slightly wider */
+            margin-bottom: 20px;
+            box-sizing: border-box;
+            text-align: center; /* Center placeholder text */
+        }
+        #playerNameInput::placeholder {
+            color: #bbb; /* Lighter placeholder */
+        }
+        #startGameButton {
+            font-size: 1.6em; /* Slightly larger button text */
+            padding: 15px 30px; /* More padding */
+            border-radius: 10px; /* More rounded */
+            border: none;
+            background-color: #4CAF50; /* Green */
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-out;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3); /* Button shadow */
+        }
+        #startGameButton:hover {
+            background-color: #45a049;
+            transform: translateY(-2px); /* Slight lift effect */
+        }
+        #startGameButton:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* Resource Counter Styles */
+        #resourceCounterContainer {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            gap: 20px;
+            z-index: 50;
+        }
+        .resource-item {
+            display: flex;
+            align-items: center;
+            padding: 7px 15px;
+            background-color: rgba(45, 60, 45, 0.85);
+            border-radius: 5px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            min-width: 90px;
+            justify-content: flex-end;
+        }
+        .resource-item img {
+            width: 40px;
+            height: 40px;
+            margin-left: 10px;
+            object-fit: contain;
+            image-rendering: pixelated;
+        }
+
+        /* Updated Chat Input Styles */
+        #localChatInput {
+            position: absolute;
+            top: 75%; /* User-adjusted position */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            padding: 10px 15px;
+            border: 2px solid #555; /* Darker border */
+            border-radius: 8px; /* Slightly rounded edges */
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            font-size: 18px;
+            outline: none;
+            box-shadow: none; /* Removed shadow */
+            z-index: 60;
+            opacity: 0;
+            pointer-events: none;
+            transition: none; /* Removed transition for instant appearance/disappearance */
+        }
+        #localChatInput::placeholder {
+            color: #aaa;
+        }
+        #localChatInput:focus {
+            border-color: #555; /* Keep border color consistent, no blue glow */
+            box-shadow: none; /* Ensure no glow on focus */
+        }
+
+        /* Leaderboard Styles */
+        #leaderboardContainer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent dark background */
+            border-radius: 10px;
+            padding: 15px;
+            color: white; /* All text inside container is white by default */
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            width: 250px; /* Fixed width for the leaderboard */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            z-index: 55; /* Below main menu, above game canvas */
+            display: none; /* Hidden by default */
+            max-height: calc(100vh - 40px); /* Limit height to viewport */
+            overflow-y: auto; /* Enable scrolling if too many players */
+        }
+
+        #leaderboardContainer h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #4CAF50; /* Green title */
+            font-size: 24px;
+        }
+
+        #leaderboardList {
+            list-style: none; /* Remove bullet points */
+            padding: 0;
+            margin: 0;
+        }
+
+        #leaderboardList li {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+        }
+
+        #leaderboardList li:last-child {
+            border-bottom: none; /* No border for the last item (redundant now, but safe to keep) */
+        }
+
+        #leaderboardList li .rank {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        #leaderboardList li .name {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis; /* Truncate long names */
+        }
+
+        #leaderboardList li .gold {
+            font-weight: bold;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="mainMenuBackground"></div> <!-- Background image div -->
+
+    <div id="mainMenu">
+        <h1>ZATU.IO</h1>
+        <input type="text" id="playerNameInput" placeholder="Enter your name" maxlength="15" autofocus/>
+        <button id="startGameButton">Play</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HTML Resource Counter -->
+    <div id="resourceCounterContainer">
+        <div class="resource-item">
+            <span id="killCount">0</span>
+            <img id="skullIcon" src="assets/Skull.webp" alt="Wood Icon" onerror="this.onerror=null;this.src='assets/Skull.webp'">
+        </div>
+        <div class="resource-item">
+            <span id="woodCount">0</span>
+            <img id="woodIcon" src="assets/tree.png" alt="Wood Icon" onerror="this.onerror=null;this.src='assets/tree.png'">
+        </div>
+        <div class="resource-item">
+            <span id="stoneCount">0</span>
+            <img id="stoneIcon" src="assets/stone.png" alt="Stone Icon" onerror="this.onerror=null;this.src='assets/stone.png'">
+        </div>
+        <div class="resource-item">
+            <span id="foodCount">0</span>
+            <img id="foodIcon" src="assets/wheat.png" alt="Food Icon" onerror="this.onerror=null;this.src='assets/apple.png'">
+        </div>
+    </div>
+
+    <!-- Local Chat Input (now just the input field) -->
+    <input type="text" id="localChatInput" placeholder="Enter Message" maxlength="30" />
+
+    <!-- Leaderboard Container -->
+    <div id="leaderboardContainer">
+        <h2>Leaderboard</h2>
+        <ul id="leaderboardList">
+            <!-- Leaderboard items will be dynamically inserted here -->
+        </ul>
+    </div>
+
+   <script src="/dist/bundle.js"></script>
+
+    <script>
+        // Global function to update the HTML resource counter from main.js
+        window.updateHtmlResourceCounter = (inventory) => {
+            const woodCountSpan = document.getElementById('woodCount');
+            const stoneCountSpan = document.getElementById('stoneCount');
+            const foodCountSpan = document.getElementById('foodCount');
+            const killCountSpan = document.getElementById('killCount');
+
+            if (woodCountSpan) {
+                woodCountSpan.textContent = Math.floor(inventory.wood || 0);
+            }
+            if (stoneCountSpan) {
+                stoneCountSpan.textContent = Math.floor(inventory.stone || 0);
+            }
+            if (foodCountSpan) {
+                foodCountSpan.textContent = Math.floor(inventory.food || 0);
+            }
+            if (killCountSpan) {
+                killCountSpan.textContent = Math.floor(inventory.kills || 0);
+            }
+        };
+
+        // Initially hide resource counters and leaderboard until the game starts
+        document.addEventListener('DOMContentLoaded', () => {
+            const resourceCounterContainer = document.getElementById('resourceCounterContainer');
+            const leaderboardContainer = document.getElementById('leaderboardContainer');
+            const mainMenuBackground = document.getElementById('mainMenuBackground'); // Get the background div
+
+            // Show UI elements when the game starts (main menu disappears)
+            const mainMenu = document.getElementById('mainMenu');
+            if (mainMenu) {
+                const observer = new MutationObserver((mutationsList, observer) => {
+                    for (const mutation of mutationsList) {
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                            if (mainMenu.style.display === 'none') {
+                                // Game started, hide main menu
+                                if (resourceCounterContainer) {
+                                    resourceCounterContainer.style.display = 'flex'; // Show the main counter
+                                }
+                                if (leaderboardContainer) {
+                                    leaderboardContainer.style.display = 'block'; // Show the leaderboard
+                                }
+                                if (mainMenuBackground) {
+                                    mainMenuBackground.style.display = 'none'; // Hide the static background image
+                                }
+                                // The localChatInput will be toggled by main.js
+                                // observer.disconnect(); // Keep observing if menu can reappear
+                            } else {
+                                // Main menu is visible, ensure game UI elements are hidden
+                                if (resourceCounterContainer) {
+                                    resourceCounterContainer.style.display = 'none';
+                                }
+                                if (leaderboardContainer) {
+                                    leaderboardContainer.style.display = 'none';
+                                }
+                                // If mainMenu is visible, and it's not the initial load,
+                                // we want the live canvas behind it, so mainMenuBackground should be hidden.
+                                // However, on initial load, mainMenuBackground should be visible.
+                                // We'll let main.js handle hiding mainMenuBackground when game starts,
+                                // and showing/hiding it when player dies/respawns.
+                                // For DOMContentLoaded, it should start visible, which is its default CSS.
+                            }
+                        }
+                    }
+                });
+                observer.observe(mainMenu, { attributes: true });
+            }
+        });
+    </script>
+</body>
+</html>
