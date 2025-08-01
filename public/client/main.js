@@ -400,11 +400,10 @@ function startGame() {
 
 
     socket = io();
-    setInterval(()=>{
-        socket.on("connect", () => {
-            console.log("✅ Connected to server with ID:", socket.id);
-        });
-    }, 1000)
+
+    socket.on("connect", () => {
+        console.log("✅ Connected to server with ID:", socket.id);
+    });
     
     const initializePlayerVisuals = (p) => {
         p.visualX = p.x;
